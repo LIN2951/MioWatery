@@ -34,7 +34,12 @@ from qqmusic_api.modules.search import SearchType
 from qqmusic_api.modules.song import SongFileInfo, SongFileType
 
 DATA = Path(os.environ.get("DATA_DIR", "private-data"))
-DATA.mkdir(parents=True, exist_ok=True, mode=0o700)
+try:
+    DATA.mkdir(parents=True, exist_ok=True, mode=0o700)
+except OSError:
+    # Vercel serverless filesystem is read-only except /tmp; use ephemeral storage there.
+    DATA = Path("/tmp/private-data")
+    DATA.mkdir(parents=True, exist_ok=True, mode=0o700)
 ORIGINS = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 
 KEYS = []
