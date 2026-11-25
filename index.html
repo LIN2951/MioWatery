@@ -8174,8 +8174,8 @@ async function msSearch(q){
  MS.loading=1;MS.err='';msResultsDraw();
  try{
   if(qqOn()){const j=await qqApi('search?q='+encodeURIComponent(q)+'&num=25');if(my!==MS.sid)return;MS.results=(j.songs||[]).map(msQQ)}
-  else{const r=await fetch('https://itunes.apple.com/search?term='+encodeURIComponent(q)+'&media=music&entity=song&limit=25&country=cn');if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(my!==MS.sid)return;
-   MS.results=(j.results||[]).filter(x=>x.trackName).map(x=>({id:'it'+x.trackId,title:x.trackName,artist:x.artistName||'',album:x.collectionName||'',art:(x.artworkUrl100||'').replace('100x100','400x400'),url:x.previewUrl||'',src:'itunes'}))}
+  else{const r=await fetch('https://music.163.com/api/search/get?type=1&limit=25&s='+encodeURIComponent(q),{headers:{'User-Agent':'Mozilla/5.0'}});if(!r.ok)throw new Error('网易云搜索请求失败 HTTP '+r.status);const j=await r.json();if(my!==MS.sid)return;
+   MS.results=((j.result&&j.result.songs)||[]).map(x=>({id:'nc'+x.id,nid:String(x.id),title:x.name||'',artist:(x.artists||x.ar||[]).map(a=>a.name).join(' / '),album:(x.album||x.al||{}).name||'',art:(x.album||x.al||{}).picUrl||'',src:'netease'})).filter(x=>x.title)}
  }catch(e){if(my!==MS.sid)return;MS.err='搜索失败：'+e.message}
  MS.loading=0;msResultsDraw()
 }
@@ -8236,6 +8236,10 @@ async function msPlay(list,i){
    const r=await qqApi('song',{mid:t.mid,mediaMid:t.mediaMid||'',type:t.type||0});
    if(MS.cur!==t)return;
    MS.alt={id:t.id,proxy:qqBase()+r.url,tried:!r.direct};url=r.direct||MS.alt.proxy;msLoadLyric(t)
+  }else if(t.src==='netease'){
+   const r=await fetch('https://netease-cloud-music-api.th911.dpdns.org/song/url?id='+encodeURIComponent(t.nid)+'&level=standard');
+   if(!r.ok)throw new Error('网易云音源服务暂时不可用');const j=await r.json();const u=j.data&&j.data[0]&&j.data[0].url;
+   if(!u)throw new Error('该歌曲暂无可用播放链接（可能受版权或会员限制）');url=u;msLoadNeteaseLyric(t)
   }
  }catch(e){MS.unlocking=false;toast(e.message);return}
  MS.unlocking=false;
@@ -8255,6 +8259,9 @@ function msParseLrc(t){
   ts.forEach(m=>{out.push({t:(+m[1])*60+(+m[2])+(m[3]?parseFloat('0.'+m[3]):0),text})})
  });
  return out.sort((a,b)=>a.t-b.t)
+}
+async function msLoadNeteaseLyric(t){
+ try{const r=await fetch('https://netease-cloud-music-api.th911.dpdns.org/lyric?id='+encodeURIComponent(t.nid));if(MS.cur!==t)return;const j=await r.json();const Ls=msParseLrc((j.lrc&&j.lrc.lyric)||'').filter(x=>x.text),Ts=msParseLrc((j.tlyric&&j.tlyric.lyric)||'').filter(x=>x.text);Ls.forEach(x=>{const m=Ts.find(y=>Math.abs(y.t-x.t)<.6);if(m&&m.text!==x.text)x.tr=m.text});MS.lyr={id:t.id,lines:Ls};MS.lyk='';msLyricTick()}catch(e){if(MS.cur===t){MS.lyr={id:t.id,lines:[]};MS.lyk='';msLyricTick()}}
 }
 async function msLoadLyric(t){
  try{
