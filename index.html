@@ -6250,7 +6250,9 @@ function openChatPhotoGallery(msgIndex,startIndex){
  if(!imgs.length)return;
  let index=((Number(startIndex)||0)%imgs.length+imgs.length)%imgs.length,paintToken=0;
  const cache=new Map();
- const preload=k=>{k=(k+imgs.length)%imgs.length;if(cache.has(k))return cache.get(k);const p=new Image();p.decoding='async';p.src=imgs[k];cache.set(k,p);return p};
+ const photoAt=k=>(k+imgs.length)%imgs.length;
+ const preload=k=>{k=photoAt(k);if(cache.has(k))return cache.get(k);const p=new Image();p.decoding='async';p.src=imgs[k];cache.set(k,p);return p};
+ const trimCache=()=>{const keep=new Set([photoAt(index),photoAt(index+1),photoAt(index-1)]);for(const [k,p] of cache){if(!keep.has(k)){cache.delete(k);p.onload=null;p.onerror=null;p.src=''}}};
  const old=document.getElementById('chat-photo-gallery');if(old)old.remove();
  const ov=document.createElement('div');ov.id='chat-photo-gallery';ov.className='chat-photo-gallery';
  ov.innerHTML='<button type="button" class="cpg-close" aria-label="关闭">×</button><div class="cpg-top"><span class="cpg-count"></span></div><div class="cpg-stage"><button type="button" class="cpg-prev" aria-label="上一张">‹</button><div class="cpg-track"><img class="cpg-image" draggable="false" alt="聊天照片"></div><button type="button" class="cpg-next" aria-label="下一张">›</button></div><div class="cpg-bottom"><span class="cpg-dots"></span></div>';
@@ -6261,10 +6263,11 @@ function openChatPhotoGallery(msgIndex,startIndex){
   const token=++paintToken,src=imgs[index],cached=preload(index);
   count.textContent=(index+1)+' / '+imgs.length;
   dots.innerHTML=imgs.length<=9?imgs.map((_,k)=>'<i class="'+(k===index?'on':'')+'"></i>').join(''):'';
-  const show=()=>{if(token!==paintToken||!ov.isConnected)return;im.style.transition='opacity .12s ease';im.style.opacity='1'};
-  if(cached.complete&&cached.naturalWidth){if(im.src!==src)im.src=src;show()}
-  else{im.style.opacity='0';cached.onload=()=>{if(token!==paintToken||!ov.isConnected)return;im.src=src;show()};cached.onerror=()=>{if(token===paintToken)im.style.opacity='1'}}
-  preload(index+1);preload(index-1);
+  const show=()=>{if(token!==paintToken||!ov.isConnected)return;im.alt='聊天照片';im.style.transition='opacity .12s ease';im.style.opacity='1'};
+  const failed=()=>{if(token!==paintToken||!ov.isConnected)return;im.removeAttribute('src');im.alt='照片加载失败，请滑动重试';im.style.opacity='1'};
+  if(cached.complete){if(cached.naturalWidth){if(im.src!==src)im.src=src;show()}else failed()}
+  else{im.removeAttribute('src');im.alt='聊天照片';im.style.opacity='0';cached.onload=()=>{if(token!==paintToken||!ov.isConnected)return;im.src=src;show()};cached.onerror=failed}
+  preload(index+1);preload(index-1);trimCache();
  };
  const move=d=>{if(imgs.length<2)return;index=(index+d+imgs.length)%imgs.length;paint()};
  ov.querySelector('.cpg-close').onclick=close;
