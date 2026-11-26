@@ -3294,7 +3294,7 @@ function __openStoreDB(){return new Promise((resolve,reject)=>{const req=indexed
 async function __readStoredState(){try{const db=await __openStoreDB();const val=await new Promise((resolve,reject)=>{const tx=db.transaction('state','readonly');const req=tx.objectStore('state').get('xsj');req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)});db.close();if(val){try{return typeof val==='string'?JSON.parse(val):val}catch(e){console.warn('IndexedDB 中的状态无法解析',e)}}}catch(e){console.warn('读取 IndexedDB 失败，将尝试旧存储',e)}try{return JSON.parse(localStorage.getItem('xsj')||'null')}catch(e){return null}}
 async function __writeStoredState(serialized){const db=await __openStoreDB();await new Promise((resolve,reject)=>{const tx=db.transaction('state','readwrite');tx.objectStore('state').put(serialized,'xsj');tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('数据库写入失败'));tx.onabort=()=>reject(tx.error||new Error('数据库写入中断'))});db.close();}
 let S=await __readStoredState();
-S=Object.assign(DEF(),S||{});S.stickerGroups=S.stickerGroups||['默认'];S.stickers=(S.stickers||[]).map(x=>({...x,group:x.group||'默认'}));S.apiPresets=S.apiPresets||[];S.imagePresets=S.imagePresets||[];S.secondaryPresets=S.secondaryPresets||[];S.fonts=S.fonts||[];S.fontPresets=S.fontPresets||[];S.fontActive=S.fontActive||'sys';S.fontScale=S.fontScale||100;S.userProfiles=S.userProfiles||[];S.npcs=S.npcs||[];S.coread=Object.assign({books:[],goal:5,daily:{},char:'',notes:{},chats:{},cur:'',fs:18,view:'home'},S.coread||{});S.ctcGroups=S.ctcGroups||[];S.diaries=S.diaries||[];S.postDecorations=S.postDecorations||[];if(!S.userProfiles.length){S.userProfiles=[Object.assign({id:'u1'},S.me)];S.activeUserProfile='u1'};S.activeUserProfile=S.activeUserProfile||S.userProfiles[0].id;S.me=Object.assign({},S.userProfiles.find(x=>x.id===S.activeUserProfile)||S.me);
+S=Object.assign(DEF(),S||{});S.stickerGroups=S.stickerGroups||['默认'];S.stickers=(S.stickers||[]).map(x=>({...x,group:x.group||'默认'}));S.apiPresets=S.apiPresets||[];S.imagePresets=S.imagePresets||[];S.secondaryPresets=S.secondaryPresets||[];S.fonts=S.fonts||[];S.fontPresets=S.fontPresets||[];S.fontActive=S.fontActive||'sys';S.fontScale=S.fontScale||100;S.userProfiles=S.userProfiles||[];S.npcs=S.npcs||[];S.coread=Object.assign({books:[],goal:5,daily:{},char:'',notes:{},chats:{},cur:'',fs:18,view:'home'},S.coread||{});S.ctcGroups=S.ctcGroups||[];S.diaries=S.diaries||[];S.postDecorations=S.postDecorations||[];if(!S.profileDecorations||typeof S.profileDecorations!=='object'||Array.isArray(S.profileDecorations)){S.profileDecorations={};if(S.postDecorations.some(Boolean)){const _owner='user:'+(S.activeUserProfile||'u1');S.profileDecorations[_owner]=S.postDecorations.slice(0,2)}S.postDecorations=[]}if(!S.userProfiles.length){S.userProfiles=[Object.assign({id:'u1'},S.me)];S.activeUserProfile='u1'};S.activeUserProfile=S.activeUserProfile||S.userProfiles[0].id;S.me=Object.assign({},S.userProfiles.find(x=>x.id===S.activeUserProfile)||S.me);
 const MEMK=['traditionalMemory','memoryEntries','vectorMemories','lastAutoSummaryCount'];
 S.chatsByUser=S.chatsByUser||{};S.memByUser=S.memByUser||{};S.cc=S.cc||{};
 {const first=S.userProfiles[0].id;
@@ -3801,12 +3801,15 @@ async function newPost(){
   if(stack[stack.length-1]==='app')rApp();
 }
 let profileTab='posts';
-function profileSlots(){
-  return `<div style="margin:14px 16px"><div class="decor-grid">${[0,1].map(i=>{const im=S.postDecorations[i];return `<div class="decor-img" data-decor-slot="${i}" role="button" aria-label="${im?'更换图片':'添加图片'}">${im?`<img src="${esc(im)}" alt="装饰图片">`:''}${im?`<button data-decor-del="${i}" aria-label="删除图片">×</button>`:''}</div>`}).join('')}</div></div>`
+function profileDecorKey(id){return id==='me'?'user:'+(S.activeUserProfile||'u1'):'role:'+String(id||'')}
+function profileDecorGet(id){const k=profileDecorKey(id);S.profileDecorations=S.profileDecorations||{};if(!Array.isArray(S.profileDecorations[k]))S.profileDecorations[k]=[];return S.profileDecorations[k]}
+function profileSlots(id){
+  const imgs=profileDecorGet(id);
+  return `<div style="margin:14px 16px"><div class="decor-grid">${[0,1].map(i=>{const im=imgs[i];return `<div class="decor-img" data-decor-slot="${i}" role="button" aria-label="${im?'更换图片':'添加图片'}">${im?`<img src="${esc(im)}" alt="装饰图片">`:''}${im?`<button data-decor-del="${i}" aria-label="删除图片">×</button>`:''}</div>`}).join('')}</div></div>`
 }
 function profileTabContent(id,ps){
-  if(profileTab==='posts')return (ps.map(o=>post(o)).join('')||'<div class="empty">还没有帖子</div>')+profileSlots();
-  if(profileTab==='media')return id==='me'?avLibHTML():profileSlots();
+  if(profileTab==='posts')return (ps.map(o=>post(o)).join('')||'<div class="empty">还没有帖子</div>')+profileSlots(id);
+  if(profileTab==='media')return id==='me'?avLibHTML():profileSlots(id);
   if(profileTab==='stickers')return stickerManagerHTML('profile');
   if(profileTab==='replies')return '<div class="empty">还没有回复</div>';
   return '<div class="empty">还没有转发</div>';
@@ -6120,9 +6123,9 @@ function bindEmbeddedProfile(){
   const bgBtn=root.querySelector('#change-user-bg');if(bgBtn)bgBtn.onclick=()=>pickImage(src=>{const x=active();if(x)x.background=src;save();rApp()});
   root.querySelectorAll('[data-profile-tab]').forEach(b=>b.onclick=()=>{profileTab=b.dataset.profileTab;rApp()});
   if(profileTab==='media')avLibBind(rApp);
-  root.querySelectorAll('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickImage(src=>{S.postDecorations[i]=src;S.postDecorations=S.postDecorations.slice(0,2);save();rApp()})});
-  root.querySelectorAll('[data-decor-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();S.postDecorations[+b.dataset.decorDel]=null;save();rApp()});
-  const link=root.querySelector('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');const idx=S.postDecorations.findIndex(x=>!x);S.postDecorations[idx<0?0:idx]=url.trim();S.postDecorations=S.postDecorations.slice(0,2);save();rApp()};
+  root.querySelectorAll('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickImage(src=>{const imgs=profileDecorGet('me');imgs[i]=src;imgs.length=2;save();rApp()})});
+  root.querySelectorAll('[data-decor-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();profileDecorGet('me')[+b.dataset.decorDel]=null;save();rApp()});
+  const link=root.querySelector('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');const imgs=profileDecorGet('me'),idx=imgs.findIndex(x=>!x);imgs[idx<0?0:idx]=url.trim();imgs.length=2;save();rApp()};
   bindUserProfile(root,rApp);
 }
 function rProf(){
@@ -6141,9 +6144,9 @@ function rProf(){
   function bindProfileContent(){
     if(profileTab==='stickers')renderStickerManager('profile');
     if(profileTab==='media'&&PID==='me')avLibBind(renderTab);
-    $$('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickImage(src=>{S.postDecorations[i]=src;S.postDecorations=S.postDecorations.slice(0,2);save();renderTab()})});
-    $$('[data-decor-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();S.postDecorations[+b.dataset.decorDel]=null;save();renderTab()});
-    const link=$('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');const idx=S.postDecorations.findIndex(x=>!x);S.postDecorations[idx<0?0:idx]=url.trim();S.postDecorations=S.postDecorations.slice(0,2);save();renderTab()};
+    $$('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickImage(src=>{const imgs=profileDecorGet(PID);imgs[i]=src;imgs.length=2;save();renderTab()})});
+    $$('[data-decor-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();profileDecorGet(PID)[+b.dataset.decorDel]=null;save();renderTab()});
+    const link=$('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');const imgs=profileDecorGet(PID),idx=imgs.findIndex(x=>!x);imgs[idx<0?0:idx]=url.trim();imgs.length=2;save();renderTab()};
   }
   bindProfileContent();
   bindUserProfile($('#pbody'),rProf);
