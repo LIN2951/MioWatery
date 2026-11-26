@@ -6260,7 +6260,7 @@ function bub(m,i,first,last){
   r.innerHTML=`<div class="av" ${!me&&i>=0?'data-thought-i="'+i+'" title="查看角色内心想法"':''}>${av(u)}</div><div class="col">${first&&!me?`<div class="nm">${esc((CC(cur).roleNote||'').trim()||u.name)}</div>`:''}${quoteHTML(m,me)}<div class="bw"><div class="m"></div>${last&&m.t&&CC(cur).tsMode!=='wx'?`<span class="tm">${hm(m.t)}</span>`:''}</div></div>`;
   if(!me&&m.reasoning&&S.cfg.showRsn!==false){const w=document.createElement('div');w.className='rsn';w.innerHTML='<button type="button" class="rsn-h">思维链<i>›</i></button><div class="rsn-b">'+esc(m.reasoning)+'</div>';w.querySelector('.rsn-h').onclick=ev=>{ev.stopPropagation();w.classList.toggle('on')};const bw=r.querySelector('.bw');bw.parentNode.insertBefore(w,bw)}
   const el=r.querySelector('.m'),sk=m.stk&&S.stickers.find(x=>x.id===m.stk);
-  if(m.fcard){el.classList.add('fc-msg');el.innerHTML=fmCardHTML(m.fcard)}else if(m.xj){el.classList.add('fc-msg');el.innerHTML=xjCardHTML(m.xj)}else if(m.yt&&window.ytMsgHTML){el.classList.add('msc-msg');r.classList.add('msc-row');['background:none','padding:0','border:0','border-radius:0','box-shadow:none','outline:0','clip-path:none','filter:none','overflow:visible'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=window.ytMsgHTML(m.yt);el.addEventListener('click',ev=>{if(multiSelectMode)return;ev.preventDefault();ev.stopPropagation();window.ytOpen(m.yt)})}else if(m.music){el.classList.add('msc-msg');r.classList.add('msc-row');['background:none','padding:0','border:0','border-radius:0','box-shadow:none','outline:0','clip-path:none','filter:none','overflow:visible'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=musicMsgHTML(m.music);el.addEventListener('click',ev=>{if(multiSelectMode)return;ev.preventDefault();ev.stopPropagation();musicMsgOpen(m.music)})}else if(m.life){el.classList.add('lf-msg');['background:none','padding:0','border:0','border-radius:0','box-shadow:none','outline:0'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=lifeCardHTML(m)}else if(m.kin){el.classList.add('kn-msg');['background:none','padding:0','border:0','border-radius:0','box-shadow:none','outline:0'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=kinMsgHTML(m)}else if(m.transfer){el.classList.add('tf-msg');el.innerHTML=trfCardHTML(m)}else if(m.image||Array.isArray(m.images)&&m.images.length){const ims=Array.isArray(m.images)&&m.images.length?m.images:[m.image],strip=m.photoLayout==='strip'&&ims.length>1;el.classList.add('image-msg',m.photoBg==='white'?'photo-bg-white':'photo-bg-black');applyPhotoMessageBackground(el,m);if(strip){el.innerHTML=`${m.content?`<div>${esc(m.content)}</div>`:''}<div class="chat-photo-strip" aria-label="照片组">${ims.map((src,k)=>`<img class="chat-photo-thumb" data-photo-index="${k}" src="${src}" alt="聊天照片 ${k+1}" loading="lazy" draggable="false">`).join('')}</div><div class="chat-photo-count">共 ${ims.length} 张 · 左右滑动</div>`}else{el.innerHTML=`${m.content?`<div>${esc(m.content)}</div>`:''}<div class="chat-photo-grid" aria-label="照片组">${ims.map((src,k)=>`<div class="chat-photo-tile"><img class="chat-photo-thumb" data-photo-index="${k}" src="${src}" alt="聊天照片 ${k+1}" loading="lazy" draggable="false"></div>`).join('')}</div>`}}else if(sk){el.classList.add('stk');el.innerHTML=`<img src="${sk.src}" alt="">`}else if(m.audio){el.classList.add('voice-msg');el.innerHTML=`<button type="button" class="voice-play" data-play-audio="${i}" aria-label="展开或收起语音文字"><span class="voice-arrow" aria-hidden="true"></span><span class="voice-wave" aria-hidden="true">${'<i></i>'.repeat(9)}</span></button><span class="voice-transcript">${esc(m.content||'语音消息')}</span>`;el.addEventListener('click',ev=>{if(multiSelectMode)return;if(msgLongPressed){msgLongPressed=false;ev.preventDefault();ev.stopPropagation();return}ev.preventDefault();ev.stopPropagation();el.classList.toggle('show-text')})}else {const _lp=lkParts(m.content);if(_lp)lkRender(el,_lp);else el.textContent=m.content}if(CC(cur).trOn&&m.trOpen&&m.role==='assistant'&&!m.image&&!m.audio&&!sk)r.querySelector('.col').insertAdjacentHTML('beforeend',trBoxHTML(m));$('#msgs').appendChild(r);$('#msgs').scrollTop=1e9;return el;
+  if(m.fcard){el.classList.add('fc-msg');el.innerHTML=fmCardHTML(m.fcard)}else if(m.xj){el.classList.add('fc-msg');el.innerHTML=xjCardHTML(m.xj)}else if(m.yt&&window.ytMsgHTML){el.classList.add('msc-msg');r.classList.add('msc-row');['background:none','padding:0','border:0','border-radius:0','box-shadow:none','outline:0','clip-path:none','filter:none','overflow:visible'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=window.ytMsgHTML(m.yt);el.addEventListener('click',ev=>{if(multiSelectMode)return;ev.preventDefault();ev.stopPropagation();window.ytOpen(m.yt)})}else if(m.music){el.classList.add('msc-msg');r.classList.add('msc-row');['background:none','padding:0','border:0','border-radius:0','box-shadow:none','outline:0','clip-path:none','filter:none','overflow:visible'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=musicMsgHTML(m.music);el.addEventListener('click',ev=>{if(multiSelectMode)return;ev.preventDefault();ev.stopPropagation();musicMsgOpen(m.music)})}else if(m.life){el.classList.add('lf-msg');['background:none','padding:0','border:0','border-radius:0','box-shadow:none','outline:0'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=lifeCardHTML(m)}else if(m.kin){el.classList.add('kn-msg');['background:none','padding:0','border:0','border-radius:0','box-shadow:none','outline:0'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=kinMsgHTML(m)}else if(m.transfer){el.classList.add('tf-msg');el.innerHTML=trfCardHTML(m)}else if(m.image||Array.isArray(m.images)&&m.images.length){const ims=Array.isArray(m.images)&&m.images.length?m.images:[m.image];el.classList.add('image-msg');['background:transparent','padding:0','border:0','border-radius:0','box-shadow:none','outline:0'].forEach(d=>{const[a,b]=d.split(':');el.style.setProperty(a,b,'important')});el.innerHTML=`${m.content?`<div>${esc(m.content)}</div>`:''}<div class="chat-photo-stack" aria-label="照片组">${ims.map((src,k)=>`<img class="chat-photo-thumb" data-photo-index="${k}" src="${src}" alt="聊天照片 ${k+1}" loading="lazy" draggable="false">`).join('')}</div>`}else if(sk){el.classList.add('stk');el.innerHTML=`<img src="${sk.src}" alt="">`}else if(m.audio){el.classList.add('voice-msg');el.innerHTML=`<button type="button" class="voice-play" data-play-audio="${i}" aria-label="展开或收起语音文字"><span class="voice-arrow" aria-hidden="true"></span><span class="voice-wave" aria-hidden="true">${'<i></i>'.repeat(9)}</span></button><span class="voice-transcript">${esc(m.content||'语音消息')}</span>`;el.addEventListener('click',ev=>{if(multiSelectMode)return;if(msgLongPressed){msgLongPressed=false;ev.preventDefault();ev.stopPropagation();return}ev.preventDefault();ev.stopPropagation();el.classList.toggle('show-text')})}else {const _lp=lkParts(m.content);if(_lp)lkRender(el,_lp);else el.textContent=m.content}if(CC(cur).trOn&&m.trOpen&&m.role==='assistant'&&!m.image&&!m.audio&&!sk)r.querySelector('.col').insertAdjacentHTML('beforeend',trBoxHTML(m));$('#msgs').appendChild(r);$('#msgs').scrollTop=1e9;return el;
 }
 $('#msgs').addEventListener('click',e=>{
  const im=e.target.closest('.chat-photo-thumb');if(!im||multiSelectMode)return;
@@ -6359,24 +6359,6 @@ function cleanChatDate(pid,mode){
  const profile=S.activeUserProfile,kept=old.filter(x=>!removed.includes(x));S.chats[pid]=kept;save();if(cur===pid)draw();
  toastUndo('已清理 '+removed.length+' 条消息',()=>{if(profile!==S.activeUserProfile)return toast('当前用户资料已切换，无法撤销');if(S.chats[pid]!==kept)return toast('聊天记录已变化，无法撤销');S.chats[pid]=old;save();if(cur===pid)draw();toast('已恢复 '+removed.length+' 条消息')});
 }
-function applyPhotoMessageBackground(el,m){
- if(!el||!m)return;
- const white=m.photoBg==='white';
- el.classList.toggle('photo-bg-white',white);
- el.classList.toggle('photo-bg-black',!white);
- el.style.setProperty('background',white?'#fff':'#111','important');
- el.style.setProperty('color',white?'#171717':'#fff','important');
- el.style.setProperty('padding','9px','important');
- el.style.setProperty('border-radius','15px','important');
- el.style.setProperty('box-shadow',white?'0 2px 9px rgba(0,0,0,.10)':'0 2px 9px rgba(0,0,0,.12)','important');
-}
-function togglePhotoMessageBackground(i){
- const m=(S.chats[cur]||[])[i];if(!m||!(m.image||Array.isArray(m.images)&&m.images.length))return;
- m.photoBg=m.photoBg==='white'?'black':'white';save();
- const box=$('#msgs'),row=box&&box.querySelector('.r[data-i="'+i+'"]');
- applyPhotoMessageBackground(row&&row.querySelector('.m.image-msg'),m);
- toast(m.photoBg==='white'?'已切换为白色照片背景':'已切换为黑色照片背景');
-}
 function setAvatarFromMessage(m,target,photoIndex){
  const pics=Array.isArray(m.images)&&m.images.length?m.images:(m.image?[m.image]:[]);
  if(!pics.length)return toast('这条消息没有照片');
@@ -6403,15 +6385,12 @@ function setAvatarFromMessage(m,target,photoIndex){
 function photoMessageMenu(i,photoIndex){
  const h=S.chats[cur],m=h&&h[i],pics=m&&(Array.isArray(m.images)&&m.images.length?m.images:(m.image?[m.image]:[]));
  if(!m||m.role!=='user'||!pics||!Number.isInteger(photoIndex)||photoIndex<0||photoIndex>=pics.length)return;
- showMsgMenu([
-  [{label:'设为我的头像',icon:'user',run:()=>setAvatarFromMessage(m,'me',photoIndex)},{label:'设为角色头像',icon:'user',run:()=>setAvatarFromMessage(m,'role',photoIndex)}],
-  [{label:m.photoBg==='white'?'图片背景：白色（切换黑色）':'图片背景：黑色（切换白色）',icon:'eye',run:()=>togglePhotoMessageBackground(i)}]
- ]);
+ showMsgMenu([[{label:'设为我的头像',icon:'user',run:()=>setAvatarFromMessage(m,'me',photoIndex)},{label:'设为角色头像',icon:'user',run:()=>setAvatarFromMessage(m,'role',photoIndex)}]]);
 }
 function messageMenu(i){const h=S.chats[cur],m=h&&h[i];if(!m)return;const ast=m.role==='assistant';if(m.errorMessage){showMsgMenu([[{label:'删除错误消息',icon:'trash',danger:1,run:()=>{const pid=cur,before=h.slice();h.splice(i,1);save();draw();offerChatUndo(pid,before,h,1,'已删除错误消息')}}]]);return}const hasPhotos=!!(m.image||Array.isArray(m.images)&&m.images.length),groups=[
  [{label:'多选消息',icon:'list',run:()=>{multiSelectMode=true;selectedMsgIndices.add(i);draw()}}],
- ...(hasPhotos&&Array.isArray(m.images)&&m.images.length>1?[[{label:m.photoLayout==='strip'?'切换为九宫格':'切换为横向滑动',icon:'edit',run:()=>{m.photoLayout=m.photoLayout==='strip'?'grid':'strip';save();draw()}}]]:[]),
- ...(hasPhotos?[[{label:m.photoBg==='white'?'图片背景：白色（切换黑色）':'图片背景：黑色（切换白色）',icon:'eye',run:()=>togglePhotoMessageBackground(i)}]]:[]),
+ 
+ 
  [{label:'复制消息',icon:'copy',run:()=>{const t=String(m.content||'').trim();if(!t)return toast('这条消息没有可复制的文字');ofCopy(t)}},
   {label:'编辑消息',icon:'edit',run:()=>modal(m.content||'',v=>{m.content=v;delete m.recalled;save();draw()})},
   {label:'引用回复',icon:'quote',run:()=>setQuote(m)},
@@ -13853,6 +13832,12 @@ box-shadow:inset 0 0 0 1px rgba(255,255,255,.65),inset 0 1px 0 rgba(255,255,255,
 #msgs .r .m.image-msg.photo-bg-white{background:#fff!important;color:#171717!important;padding:9px!important;border-radius:15px!important;box-shadow:0 2px 9px rgba(0,0,0,.10)!important}
 #msgs .r .m.image-msg.photo-bg-black>div:not(.chat-photo-grid):not(.chat-photo-strip):not(.chat-photo-count){background:rgba(255,255,255,.12)!important;color:#fff!important}
 #msgs .r .m.image-msg.photo-bg-white>div:not(.chat-photo-grid):not(.chat-photo-strip):not(.chat-photo-count){background:rgba(0,0,0,.055)!important;color:#171717!important}
+</style>
+
+<style id="photo-stack-cleanup">
+#msgs .r .m.image-msg{width:fit-content!important;max-width:min(78vw,360px)!important;min-width:0!important;background:transparent!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}
+#msgs .r .m.image-msg .chat-photo-stack{display:flex!important;flex-direction:column!important;gap:0!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;border:0!important;border-radius:0!important;background:transparent!important}
+#msgs .r .m.image-msg .chat-photo-stack .chat-photo-thumb{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;max-height:none!important;object-fit:contain!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;scroll-snap-align:none!important;user-select:none;-webkit-user-drag:none}
 </style>
 </body>
 </html>
