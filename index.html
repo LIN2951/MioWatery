@@ -6380,7 +6380,9 @@ function togglePhotoMessageBackground(i){
 function setAvatarFromMessage(m,target,photoIndex){
  const pics=Array.isArray(m.images)&&m.images.length?m.images:(m.image?[m.image]:[]);
  if(!pics.length)return toast('这条消息没有照片');
- const apply=src=>avCompress(src,data=>{
+ if(!Number.isInteger(photoIndex)||photoIndex<0||photoIndex>=pics.length)return toast('请长按要设置的那张照片');
+ const src=pics[photoIndex];
+ avCompress(src,data=>{
   if(!data)return toast('头像图片处理失败');
   if(target==='me'){
    const id=S.activeUserProfile||'u1',u=(S.userProfiles||[]).find(x=>x.id===id);
@@ -6397,12 +6399,7 @@ function setAvatarFromMessage(m,target,photoIndex){
    toast('已将这张照片设为 '+(p.name||'角色')+' 的头像');
   }
  },360);
- if(Number.isInteger(photoIndex)&&photoIndex>=0&&photoIndex<pics.length){apply(pics[photoIndex]);return}
- if(pics.length===1){apply(pics[0]);return}
- showFeedSheet(pics.map((src,k)=>({label:'使用第 '+(k+1)+' 张照片',run:()=>apply(src)})).concat([{label:'取消',run:()=>{}}]));
 }
-function setRoleAvatarFromMessage(m){setAvatarFromMessage(m,'role')}
-function setMyAvatarFromMessage(m){setAvatarFromMessage(m,'me')}
 function photoMessageMenu(i,photoIndex){
  const h=S.chats[cur],m=h&&h[i],pics=m&&(Array.isArray(m.images)&&m.images.length?m.images:(m.image?[m.image]:[]));
  if(!m||m.role!=='user'||!pics||!Number.isInteger(photoIndex)||photoIndex<0||photoIndex>=pics.length)return;
@@ -6413,7 +6410,6 @@ function photoMessageMenu(i,photoIndex){
 }
 function messageMenu(i){const h=S.chats[cur],m=h&&h[i];if(!m)return;const ast=m.role==='assistant';if(m.errorMessage){showMsgMenu([[{label:'删除错误消息',icon:'trash',danger:1,run:()=>{const pid=cur,before=h.slice();h.splice(i,1);save();draw();offerChatUndo(pid,before,h,1,'已删除错误消息')}}]]);return}const hasPhotos=!!(m.image||Array.isArray(m.images)&&m.images.length),groups=[
  [{label:'多选消息',icon:'list',run:()=>{multiSelectMode=true;selectedMsgIndices.add(i);draw()}}],
- ...(hasPhotos&&m.role==='user'?[[{label:'设为我的头像',icon:'user',run:()=>setMyAvatarFromMessage(m)},{label:'设为角色头像',icon:'user',run:()=>setRoleAvatarFromMessage(m)}]]:[]),
  ...(hasPhotos&&Array.isArray(m.images)&&m.images.length>1?[[{label:m.photoLayout==='strip'?'切换为九宫格':'切换为横向滑动',icon:'edit',run:()=>{m.photoLayout=m.photoLayout==='strip'?'grid':'strip';save();draw()}}]]:[]),
  ...(hasPhotos?[[{label:m.photoBg==='white'?'图片背景：白色（切换黑色）':'图片背景：黑色（切换白色）',icon:'eye',run:()=>togglePhotoMessageBackground(i)}]]:[]),
  [{label:'复制消息',icon:'copy',run:()=>{const t=String(m.content||'').trim();if(!t)return toast('这条消息没有可复制的文字');ofCopy(t)}},
