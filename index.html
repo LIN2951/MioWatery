@@ -6286,9 +6286,21 @@ function showMsgMenu(groups){
 function deleteFromHere(i){
  const pid=cur,h=S.chats[pid]||[];if(!Number.isInteger(i)||i<0||i>=h.length)return;
  const count=h.length-i,removed=h.slice(i),profile=S.activeUserProfile;
- h.splice(i);selectedMsgIndices.clear();multiSelectMode=false;save();
  const box=$('#msgs'),target=box&&box.querySelector('[data-i="'+i+'"]');
- if(target){let first=target,prev=target.previousElementSibling;if(prev&&prev.matches('.dd,.wxt'))first=prev;while(first){const next=first.nextSibling;first.remove();first=next}}
+ let first=target;
+ if(first){const prev=first.previousElementSibling;if(prev&&prev.matches('.dd,.wxt'))first=prev}
+ const nodes=[];
+ if(first){for(let node=first;node;node=node.nextSibling)if(node.nodeType===1)nodes.push(node)}
+ h.splice(i);selectedMsgIndices.clear();multiSelectMode=false;save();
+ const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(nodes.length&&!reduce&&nodes.length<=180&&nodes[0].animate){
+   const animations=nodes.map(node=>{const rect=node.getBoundingClientRect();return node.animate([
+     {opacity:1,transform:'translate3d(0,0,0)',filter:'blur(0px)'},
+     {opacity:0,transform:'translate3d(0,-7px,0)',filter:'blur(1px)'}
+   ],{duration:155,easing:'cubic-bezier(.2,.72,.25,1)',fill:'forwards'})});
+   Promise.all(animations.map(a=>a.finished.catch(()=>{}))).then(()=>nodes.forEach(node=>node.remove()));
+   setTimeout(()=>nodes.forEach(node=>node.remove()),220);
+ }else nodes.forEach(node=>node.remove());
  toastUndo('已删除 '+count+' 条消息',()=>{if(profile!==S.activeUserProfile)return toast('当前用户资料已切换，无法撤销');if(S.chats[pid]!==h)return toast('聊天记录已变化，无法撤销');h.splice(i,0,...removed);save();if(cur===pid)draw();toast('已恢复 '+count+' 条消息')});
 }
 function cleanChatByDate(pid){
