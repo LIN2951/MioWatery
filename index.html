@@ -3668,7 +3668,7 @@ function pickProfileDecorImage(cb){
  let done=false;const cleanup=()=>{if(done)return;done=true;setTimeout(()=>i.remove(),0)};
  i.addEventListener('change',()=>{
   const f=i.files&&i.files[0];if(!f){cleanup();return}
-  if(!/^image\\//i.test(f.type)){toast('请选择图片文件');cleanup();return}
+  if(!/^image\//i.test(f.type)){toast('请选择图片文件');cleanup();return}
   const r=new FileReader();
   r.onload=()=>{try{if(typeof r.result==='string')cb(r.result);else toast('图片读取失败')}catch(e){toast('图片保存失败：'+(e.message||'未知错误'))}finally{cleanup()}};
   r.onerror=()=>{toast('图片读取失败，请重试');cleanup()};
