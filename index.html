@@ -218,8 +218,8 @@ label{display:block;font-size:12px;color:var(--sub);margin:14px 0 6px}
 #modal .bt{display:flex;gap:10px}
 #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:18px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .16s;z-index:20;max-width:calc(100vw - 32px)}
 #toast.on{opacity:1}
-#toast.has-action{pointer-events:auto;display:flex;align-items:center;gap:14px;white-space:nowrap}
-#toast.has-action button{border:0;background:transparent;color:inherit;font:inherit;font-weight:700;padding:2px 0;cursor:pointer;opacity:.9}
+#toast.has-action{pointer-events:none;display:flex;align-items:center;gap:14px;white-space:nowrap}
+#toast.has-action button{pointer-events:auto;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;padding:2px 0;cursor:pointer;opacity:.9}
 
 /* character phone app */
 .rolephone-launch{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--p);margin:10px 0;cursor:pointer}
@@ -3656,7 +3656,7 @@ function applyTheme(){const d=S.theme==='dark'||(S.theme==='auto'&&matchMedia('(
   document.documentElement.dataset.theme=d?'dark':'light'}
 matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>S.theme==='auto'&&applyTheme());
 function toast(t,ms){const e=$('#toast');e.classList.remove('has-action');e.textContent=t;e.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('on'),ms||2600)}
-function toastUndo(t,undo){const e=$('#toast');e.classList.add('on','has-action');e.textContent=t;const b=document.createElement('button');b.type='button';b.textContent='撤销';b.onclick=()=>{clearTimeout(toast.h);e.classList.remove('on','has-action');undo()};e.appendChild(b);clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('on','has-action'),6500)}
+function toastUndo(t,undo){const e=$('#toast');clearTimeout(toast.h);e.classList.remove('on','has-action');e.replaceChildren();e.append(document.createTextNode(t));const b=document.createElement('button');b.type='button';b.textContent='撤销';b.onclick=()=>{clearTimeout(toast.h);e.classList.remove('on','has-action');e.replaceChildren();undo()};e.appendChild(b);e.classList.add('on','has-action');toast.h=setTimeout(()=>{e.classList.remove('on','has-action');e.replaceChildren()},2400)}
 function offerChatUndo(pid,before,after,count,label){const profile=S.activeUserProfile;toastUndo(label,()=>{if(profile!==S.activeUserProfile)return toast('当前用户资料已切换，无法撤销');if(S.chats[pid]!==after)return toast('聊天记录已变化，无法撤销');S.chats[pid]=before;save();if(cur===pid)draw();toast('已恢复 '+count+' 条消息')})}
 
 function pick(cb){const i=document.createElement('input');i.type='file';i.accept='image/*';
