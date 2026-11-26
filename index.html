@@ -6162,7 +6162,7 @@ function rProf(){
   function bindProfileContent(){
     if(profileTab==='stickers')renderStickerManager('profile');
     if(profileTab==='media'&&PID==='me')avLibBind(renderTab);
-    $('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickProfileDecorImage(src=>{const imgs=profileDecorGet(PID);imgs[i]=src;imgs.length=2;save();renderTab()})});
+    $$('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickProfileDecorImage(src=>{const imgs=profileDecorGet(PID);imgs[i]=src;imgs.length=2;save();renderTab()})});
     $$('[data-decor-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();profileDecorGet(PID)[+b.dataset.decorDel]=null;save();renderTab()});
     const link=$('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');(()=>{const imgs=profileDecorGet(PID),idx=imgs.findIndex(x=>!x);imgs[idx<0?0:idx]=url.trim();imgs.length=2})();save();renderTab()};
   }
