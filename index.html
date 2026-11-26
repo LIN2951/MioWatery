@@ -13997,5 +13997,130 @@ box-shadow:inset 0 0 0 1px rgba(255,255,255,.65),inset 0 1px 0 rgba(255,255,255,
 <style id="photo-download-sheet-style">
 .photo-download-sheet{position:fixed;inset:0;z-index:100500;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.48);padding:12px;box-sizing:border-box}.pds-panel{width:min(100%,520px);max-height:82vh;overflow:auto;background:#fff;color:#171717;border-radius:22px;padding:16px;box-sizing:border-box}.pds-head{display:flex;align-items:center;justify-content:space-between;font-size:16px;margin-bottom:14px}.pds-close{border:0;background:#eee;border-radius:50%;width:32px;height:32px;font-size:22px}.pds-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.pds-item{position:relative;display:block;min-width:0}.pds-item img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#eee}.pds-item input{position:absolute;top:7px;left:7px;width:20px;height:20px;z-index:1;accent-color:#111}.pds-item span{display:block;text-align:center;font-size:12px;color:#555;margin-top:4px}.pds-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}.pds-actions button{border:0;border-radius:12px;padding:13px 8px;background:#171717;color:#fff;font-size:14px}.pds-hint{font-size:12px;color:#777;margin:10px 0 0}
 </style>
+
+<style id="contact-list-enhancements-v1">
+#contact-tools{position:sticky;top:0;z-index:8;padding:10px 16px 12px;background:var(--bg);border-bottom:1px solid var(--line)}
+#contact-tools .ct-search{height:42px;display:flex;align-items:center;gap:9px;padding:0 13px;border-radius:12px;background:var(--p);color:var(--sub)}
+#contact-tools .ct-search svg{width:18px;height:18px;flex:none}
+#contact-tools .ct-search input{min-width:0;flex:1;padding:0;border:0;border-radius:0;background:transparent;color:var(--ink);font-size:14px;outline:0}
+#contact-tools .ct-search input::placeholder{color:var(--sub)}
+#contact-tools .ct-filters{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-top:10px}
+#contact-tools .ct-filters::-webkit-scrollbar{display:none}
+#contact-tools .ct-filter{flex:none;padding:6px 13px;border-radius:999px;background:var(--p);color:var(--sub);font-size:12px;line-height:1.4}
+#contact-tools .ct-filter.on{background:var(--ink);color:var(--bg);font-weight:650}
+#abody .row[hidden],#abody .sec[hidden]{display:none!important}
+</style>
+<script id="contact-list-enhancements-v1">
+(function(){
+  if(typeof rApp!=='function'||typeof S==='undefined'||!document.getElementById('abody'))return;
+  const baseRender=rApp;
+  let filter='all',query='',lastTab=-1,savedScroll=0,raf=0;
+  const lastChat=p=>{
+    const a=S.chats&&Array.isArray(S.chats[p.id])?S.chats[p.id]:[];
+    let t=0;for(const m of a)t=Math.max(t,Number(m&&(m.t||m.time||m.timestamp))||0);
+    return t;
+  };
+  const getPersona=row=>row&&row.dataset&&row.dataset.prof&&row.dataset.prof!=='me'&&typeof P==='function'?P(row.dataset.prof):null;
+  function apply(){
+    const box=document.getElementById('abody'),tools=document.getElementById('contact-tools');if(!box||!tools)return;
+    const q=query.trim().toLocaleLowerCase();
+    const rows=Array.from(box.querySelectorAll(':scope > .row'));
+    rows.forEach(row=>{
+      const p=getPersona(row),isNpc=!row.dataset.prof;
+      let show=true;
+      if(filter==='archived')show=!!(p&&p.archived);
+      else if(p&&p.archived)show=false;
+      if(filter==='pinned')show=!!(p&&p.pinned&&!p.archived);
+      if(filter==='recent')show=!!(p&&!p.archived&&lastChat(p)>0);
+      if(isNpc&&filter!=='all')show=false;
+      if(row.dataset.prof==='me'&&filter!=='all')show=false;
+      if(q){
+        const hay=p?[p.name,p.handle,p.bio,p.prompt].join(' '):row.textContent;
+        show=show&&String(hay||'').toLocaleLowerCase().includes(q);
+      }
+      row.hidden=!show;
+    });
+    Array.from(box.querySelectorAll(':scope > .sec')).forEach(sec=>{
+      let n=sec.nextElementSibling,has=false;
+      while(n&&!n.classList.contains('sec')){if(n.classList.contains('row')&&!n.hidden)has=true;n=n.nextElementSibling}
+      sec.hidden=!has;
+    });
+    const buttons=tools.querySelectorAll('[data-ct-filter]');
+    buttons.forEach(b=>b.classList.toggle('on',b.dataset.ctFilter===filter));
+    const sections=Array.from(box.querySelectorAll(':scope > .sec'));
+    sections.forEach(sec=>{
+      if(!/联系人/.test(sec.textContent||''))return;
+      const group=[];let n=sec.nextElementSibling;
+      while(n&&!n.classList.contains('sec')){if(n.classList.contains('row'))group.push(n);n=n.nextElementSibling}
+      group.sort((a,b)=>{
+        const pa=getPersona(a),pb=getPersona(b);
+        if(filter==='recent')return lastChat(pb)-lastChat(pa);
+        return Number(!!(pb&&pb.pinned))-Number(!!(pa&&pa.pinned));
+      });
+      group.forEach(row=>box.insertBefore(row,n||null));
+    });
+  }
+  function showManage(p){
+    if(!p)return;
+    const pin=()=>{p.pinned=!p.pinned;saveNow();apply();toast(p.pinned?'已置顶联系人':'已取消置顶')};
+    const archive=()=>{p.archived=!p.archived;saveNow();apply();toast(p.archived?'已移入归档':'已从归档恢复')};
+    iosSheet({title:'联系人管理',items:[
+      {label:p.pinned?'取消置顶':'置顶联系人',run:pin},
+      {label:p.archived?'移出归档':'移入归档',run:archive},
+      {label:'编辑联系人',run:()=>ctcEdit('p',p)},
+      {label:'取消',run:()=>{}}
+    ]});
+  }
+  function bindRows(){
+    const box=document.getElementById('abody');if(!box)return;
+    box.querySelectorAll(':scope > .row[data-prof]').forEach(row=>{
+      if(row.dataset.ctLongBound)return;row.dataset.ctLongBound='1';
+      let timer=0,sx=0,sy=0;
+      row.addEventListener('pointerdown',e=>{
+        if(e.pointerType==='mouse'&&e.button!==0)return;
+        const p=getPersona(row);if(!p)return;
+        sx=e.clientX;sy=e.clientY;clearTimeout(timer);
+        timer=setTimeout(()=>{row.dataset.ctSkipClick='1';showManage(p)},560);
+      },{passive:true});
+      row.addEventListener('pointermove',e=>{if(Math.abs(e.clientX-sx)>12||Math.abs(e.clientY-sy)>12)clearTimeout(timer)},{passive:true});
+      const end=()=>clearTimeout(timer);
+      row.addEventListener('pointerup',end,{passive:true});
+      row.addEventListener('pointercancel',end,{passive:true});
+      row.addEventListener('click',e=>{
+        if(row.dataset.ctSkipClick==='1'){delete row.dataset.ctSkipClick;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation()}
+      },true);
+      row.addEventListener('contextmenu',e=>{const p=getPersona(row);if(!p)return;e.preventDefault();showManage(p)});
+    });
+  }
+  function install(){
+    const box=document.getElementById('abody');if(!box)return;
+    let tools=document.getElementById('contact-tools');
+    if(!tools){
+      tools=document.createElement('div');tools.id='contact-tools';
+      tools.innerHTML='<label class="ct-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg><input id="ct-contact-search" type="search" autocomplete="off" placeholder="搜索联系人、备注或人设"></label><div class="ct-filters"><button type="button" class="ct-filter" data-ct-filter="all">全部</button><button type="button" class="ct-filter" data-ct-filter="recent">最近聊天</button><button type="button" class="ct-filter" data-ct-filter="pinned">置顶</button><button type="button" class="ct-filter" data-ct-filter="archived">归档</button></div>';
+      box.insertBefore(tools,box.firstChild);
+      const input=tools.querySelector('#ct-contact-search');
+      input.value=query;
+      input.addEventListener('input',()=>{query=input.value;if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{raf=0;apply()})});
+      tools.addEventListener('click',e=>{const b=e.target.closest('[data-ct-filter]');if(!b)return;filter=b.dataset.ctFilter;apply()});
+    }else{
+      const input=tools.querySelector('#ct-contact-search');if(input)input.value=query;
+    }
+    bindRows();apply();
+  }
+  rApp=function(){
+    const box=document.getElementById('abody');
+    if(lastTab===0&&box)savedScroll=box.scrollTop;
+    baseRender();
+    if(T===0){
+      install();
+      requestAnimationFrame(()=>{const b=document.getElementById('abody');if(b)b.scrollTop=savedScroll});
+    }
+    lastTab=T;
+  };
+  if(T===0)install();
+})();
+</script>
+
 </body>
 </html>
