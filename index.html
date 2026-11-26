@@ -5649,27 +5649,30 @@ function fvLayout(st){
     const tx=s*(a*cw*.74+e*cw*.3),rot=-s*a*52,z=-a*70-e*40,sc=1-a*.1;
     c.style.transform=`translate(-50%,-50%) translate3d(${tx}px,0,${z}px) rotateY(${rot}deg) scale(${sc})`;
     c.style.zIndex=String(100-Math.round(ad*10));
-    c.style.opacity=ad>3.2?'0':'1';c.style.pointerEvents=ad>3.2?'none':'auto'
+    c.style.opacity=ad>3.2?'0':'1';c.style.pointerEvents='auto'
   })
 }
 function fvPickCover(i){
- const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('aria-label','选择收藏卡面照片');
- input.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.001;z-index:2147483647';
- document.body.appendChild(input);let finished=false;
- const clean=()=>{if(finished)return;finished=true;setTimeout(()=>input.remove(),0)};
+ const input=document.createElement('input');
+ input.type='file';input.accept='image/*';input.setAttribute('aria-label','选择收藏卡面照片');
+ input.style.cssText='position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;z-index:2147483647';
+ document.body.appendChild(input);
+ let finished=false;
+ const cleanup=()=>{if(finished)return;finished=true;setTimeout(()=>input.remove(),0)};
  input.addEventListener('change',()=>{
-  const file=input.files&&input.files[0];if(!file){clean();return}
-  if(!file.type||file.type.indexOf('image/')!==0){toast('请选择图片文件');clean();return}
+  const file=input.files&&input.files[0];if(!file){cleanup();return}
+  if(file.type&&file.type.indexOf('image/')!==0){toast('请选择图片文件');cleanup();return}
   const reader=new FileReader();
-  reader.onload=()=>{const src=reader.result;if(typeof src!=='string'){toast('图片读取失败');clean();return}
-   fvCompress(src,out=>{const covers=fvCovers();while(covers.length<fvSlots())covers.push('');covers[i]=out;save();rApp();toast('封面照片已更新');clean()})
+  reader.onload=()=>{const src=reader.result;if(typeof src!=='string'){toast('图片读取失败');cleanup();return}
+   try{fvCompress(src,out=>{const covers=fvCovers();while(covers.length<=i)covers.push('');covers[i]=out;save();rApp();toast('第'+(i+1)+'张封面已上传');cleanup()})}
+   catch(err){toast('图片处理失败，请重试');cleanup()}
   };
-  reader.onerror=()=>{toast('图片读取失败，请重试');clean()};
+  reader.onerror=()=>{toast('图片读取失败，请重试');cleanup()};
   reader.readAsDataURL(file);
  },{once:true});
- input.addEventListener('cancel',clean,{once:true});
- try{input.click()}catch(e){clean();toast('无法打开相册，请重试')}
- setTimeout(clean,120000);
+ input.addEventListener('cancel',cleanup,{once:true});
+ try{input.click()}catch(err){cleanup();toast('无法打开相册，请重试')}
+ setTimeout(cleanup,120000);
 }
 function fvCardMenu(i){
  const cv=fvCovers(),has=!!cv[i];
@@ -5690,8 +5693,7 @@ function fvBind(root){
   const c=e.target.closest&&e.target.closest('.fv-card');if(!c)return;
   const i=Number(c.dataset.fvI),cv=fvCovers(),rect=c.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
   if(cv[i]&&x>=rect.width*.72&&y<=rect.height*.28){cv[i]='';save();rApp();toast('封面照片已移除');return}
-  if(i!==FV.ci){FV.ci=i;FV.pos=i;fvLayout(st);return}
-  fvCardMenu(i);
+  FV.ci=i;FV.pos=i;fvPickCover(i);
  };
  st.onpointerup=end;
  st.onpointercancel=()=>{down=0;st.classList.remove('drag');FV.ci=Math.round(FV.pos);FV.pos=FV.ci;fvLayout(st)};
