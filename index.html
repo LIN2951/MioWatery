@@ -10694,7 +10694,7 @@ function dctNormalizePackage(o){
  if(!o||typeof o!=='object')return null;
  let d=o.desktop||o.theme||o.desktopTheme||o.desktopConfig||(o.data&&(o.data.desktop||o.data.theme||o.data))||o.config||o;
  if(!d||typeof d!=='object'||Array.isArray(d))return null;
- const has=['wallpaper','background','backgroundImage','wallpaperUrl','icons','appIcons','widgets','wlib','components','customWidgets','order','hidden','free'].some(k=>d[k]!==undefined);
+ const has=['wallpaper','background','backgroundImage','wallpaperUrl','icons','appIcons','widgets','wlib','customWidgets','order','hidden','free'].some(k=>d[k]!==undefined);
  if(!has)return null;
  const out=Object.assign({},d);
  if(out.wallpaper==null)out.wallpaper=out.backgroundImage||out.wallpaperUrl||out.background||out.bg||'';
