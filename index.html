@@ -6510,8 +6510,34 @@ $('#redo').onclick=()=>{
 $('#ta').addEventListener('input',e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,110)+'px';sIcon()});
 $('#ta').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}});
 $('#send').onclick=()=>$('#ta').value.trim()?send():reply();
-$('#pm-image').onclick=()=>$('#chat-image-file').click();
-$('#chat-image-file').onchange=async e=>{const files=Array.from(e.target.files||[]);e.target.value='';if(!files.length)return;const picked=files.filter(f=>f.type.startsWith('image/'));if(!picked.length)return toast('请选择图片文件');try{const data=await Promise.all(picked.map(f=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error||new Error('图片读取失败'));r.readAsDataURL(f)})));S.chats[cur]=S.chats[cur]||[];S.chats[cur].push({role:'user',content:$('#ta').value.trim(),images:data,t:Date.now(),...takeQuote()});$('#ta').value='';$('#ta').style.height='auto';save();draw();toast('已发送 '+data.length+' 张照片');}catch(err){toast('图片读取失败：'+(err&&err.message||''))}};
+function openChatImagePicker(){
+ const i=document.createElement('input');i.type='file';i.accept='image/*';i.multiple=true;
+ i.setAttribute('aria-label','选择多张聊天照片');
+ i.style.cssText='position:fixed;left:-10000px;top:0;width:1px;height:1px;opacity:0;';
+ document.body.appendChild(i);
+ let handled=false;
+ const cleanup=()=>{if(i.isConnected)i.remove()};
+ i.addEventListener('change',async()=>{
+  if(handled)return;handled=true;
+  const files=Array.from(i.files||[]).filter(f=>f&&(/^image\\//i.test(f.type)||/\\.(png|jpe?g|gif|webp|bmp|avif|heic|heif)$/i.test(f.name||'')));
+  cleanup();
+  if(!files.length)return;
+  try{
+   const data=await Promise.all(files.map(f=>new Promise((resolve,reject)=>{
+    const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(reader.error||new Error('图片读取失败'));reader.readAsDataURL(f);
+   })));
+   if(!data.length)return;
+   const chatId=cur;
+   S.chats[chatId]=S.chats[chatId]||[];
+   S.chats[chatId].push({role:'user',content:$('#ta').value.trim(),images:data,t:Date.now(),...takeQuote()});
+   $('#ta').value='';$('#ta').style.height='auto';save();draw();
+   toast('已发送 '+data.length+' 张照片');
+  }catch(err){toast('图片读取失败：'+(err&&err.message||''))}
+ },{once:true});
+ i.addEventListener('cancel',cleanup,{once:true});
+ try{i.click()}catch(err){cleanup();toast('无法打开相册，请重试')}
+}
+$('#pm-image').onclick=openChatImagePicker;
 function send(){
   const ta=$('#ta'),t=ta.value.trim();if(!t||busy)return;
   if(P(cur).blocked)return toast('已拉黑，请先解除拉黑');
