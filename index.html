@@ -10667,6 +10667,31 @@ function dctClean(o){
  ['textColor','timeColor','dateColor'].forEach(k=>{const c=col(o[k]);if(c)R[k]=c});
  return R}
 function dctBuild(){return{app:'xsj-desktop-theme',v:1,created:new Date().toISOString().slice(0,10),desktop:dctClean(dcwD())}}
+
+function dctThemeList(){S.desktopThemes=Array.isArray(S.desktopThemes)?S.desktopThemes:[];return S.desktopThemes}
+function dctSaveTheme(txt,fallback){
+ let o;try{o=JSON.parse(String(txt||'').trim())}catch(e){return{bad:'不是有效的桌面美化包'}}
+ if(!o||o.app!=='xsj-desktop-theme'||!o.desktop||typeof o.desktop!=='object')return{bad:'不是桌面美化包'};
+ const name=String(fallback||o.name||'导入的桌面美化').trim().slice(0,40)||'导入的桌面美化',c=dctClean(o.desktop),list=dctThemeList(),sig=JSON.stringify(c);
+ if(list.some(x=>x.name===name&&JSON.stringify(x.desktop)===sig))return{skip:1,name};
+ list.unshift({id:uid(),name,category:'桌面美化',createdAt:Date.now(),desktop:c});save();return{n:1,name};
+}
+function dctApplyTheme(id){
+ const x=dctThemeList().find(v=>v.id===id);if(!x)return toast('找不到这套美化方案');
+ const old=S.desktop||{},keep={};['wxData','wxCity','wxLat','wxLon'].forEach(k=>{if(old[k]!==undefined)keep[k]=old[k]});
+ S.desktop=Object.assign({},dctClean(x.desktop),keep);
+ Promise.resolve(save()).then(ok=>{if(ok===false)return;toast('已切换到「'+x.name+'」');setTimeout(()=>location.reload(),350)});
+}
+function dctThemeMenu(x){
+ dcwSheet(x.name,[{label:'应用这套美化',run:()=>dctApplyTheme(x.id)},
+ {label:'导出美化包',run:()=>{const p={app:'xsj-desktop-theme',v:1,name:x.name,desktop:dctClean(x.desktop)};dctDownload(JSON.stringify(p),x.name)}},
+ {label:'删除方案',danger:1,run:()=>{if(!confirm('删除「'+x.name+'」？不会影响当前桌面。'))return;S.desktopThemes=dctThemeList().filter(v=>v.id!==x.id);save();renderDesktopCustomizer();toast('已删除美化方案')}},
+ {label:'取消',cancel:1}]);
+}
+function dctThemeLibrary(){
+ const list=dctThemeList();
+ dcwSheet('已保存的桌面美化',list.length?list.map(x=>({label:x.name+' · '+(x.category||'桌面美化'),run:()=>dctThemeMenu(x)})).concat([{label:'取消',cancel:1}]):[{label:'还没有保存的美化方案',cancel:1}]);
+}
 function dctDownload(json,name){
  const fn=String(name||'我的桌面').replace(/[\\\\/:*?"<>|]/g,'_').slice(0,60)+'.json';
  return dcwSaveFile(json,fn,'application/json;charset=utf-8')
@@ -10699,7 +10724,7 @@ function dctImportMenu(){
 function dctPackUI(){
  const mk=(t,c,h)=>{const e=document.createElement(t);e.className=c;if(h!=null)e.innerHTML=h;return e};
  const row=(l,sub,fn)=>{const b=mk('button','dci-row','<span class="l">'+esc(l)+'</span><span class="r">'+esc(sub||'')+'</span><i class="ch">›</i>');b.type='button';b.onclick=fn;return b};
- const g=mk('div','dci-g');g.appendChild(row('导出当前桌面美化','壁纸 · 图标 · 组件 · 摆放',dctExport));g.appendChild(row('导入美化包','文件或粘贴代码',dctImportMenu));
+ const g=mk('div','dci-g');g.appendChild(row('导出当前桌面美化','壁纸 · 图标 · 组件 · 摆放',dctExport));g.appendChild(row('导入美化包','文件或粘贴代码',dctImportMenu));g.appendChild(row('我的美化方案',dctThemeList().length+' 套 · 可随时切换',dctThemeLibrary));
  return[mk('div','dci-h','美化包'),g,mk('div','dci-f','把现在的壁纸、软件图标、小组件、自定义组件和摆放位置打包成一个文件，发给别人就能一键换上同样的桌面。导入会替换你当前的桌面美化。')]}
 /* --- 长按桌面空白处 / 不可拖动的组件 --- */
 (function(){
@@ -11165,6 +11190,22 @@ function xrImportFiles(cat){xrPick(async fs=>{let n=0,skip=0,notes=[],extra='';
   const r=await XR[cat].unpack(t,xrBase(f.name));if(r.cancel)return;n+=r.n||0;skip+=r.skip||0;if(r.bad)notes.push(f.name+'：'+r.bad);if(r.note)extra=r.note}
  xrReport(xrCatName(cat),n,skip,notes,extra)},{multiple:true})}
 async function xrImportWork(w){
+ if(w.cat==='other'){
+  const kind=await xrOtherPackageKind(w);
+  if(kind==='theme'){
+   let n=0,skip=0,notes=[];
+   for(const a of w.files){let t='';try{t=await xrText(a)}catch(e){}if(!t)continue;const r=dctSaveTheme(t,w.title||xrBase(a.name));if(r.n)n+=r.n;if(r.skip)skip++;if(r.bad)notes.push(a.name+'：'+r.bad)}
+   if(n||skip){try{renderDesktopCustomizer()}catch(e){}xrReport('我的桌面美化',n,skip,notes,'已归类为「桌面美化」，可在桌面美化 → 我的美化方案中切换');return}
+   return toast(notes[0]||'没有找到可导入的桌面美化包');
+  }
+  if(kind==='widgets'){
+   let n=0;
+   for(const a of w.files){let t='';try{t=await xrText(a)}catch(e){}if(!t)continue;const r=dcwImportText(t);if(typeof r==='number')n+=r}
+   if(n){try{dcwRefreshUI()}catch(e){}return toast('已导入 '+n+' 个小组件，可在桌面美化里的我的组件库中添加到桌面',4200)}
+   return toast('没有可导入的新小组件（可能已存在或文件格式不正确）');
+  }
+  return toast('「其他」作品不是可识别的桌面美化包或小组件包，仍可下载附件');
+ }
  const C=XR[w.cat];if(!C)return toast('「其他」分区的附件只能下载');
  if(!w.files.length)return toast('这个作品没有附件');
  let n=0,skip=0,notes=[],extra='';
@@ -11567,15 +11608,23 @@ async function xrPlaza(){const box=$('#xr-list');if(!box)return;const tok=++xrPl
   if(!j.works.length){box.innerHTML='<div class="of-empty">'+(XRS.q||XRS.cat!=='all'?'没有符合条件的作品':'广场还没有作品<br>在「我的」里打开作品，点「发布到广场」')+'</div>';return}
   box.innerHTML='<div class="xr-fls">'+j.works.map((w,i)=>xrCard(w,w.poster,(j.total||j.works.length)-i)).join('')+'</div>'+(j.total>j.works.length?'<p class="of-hint">只显示最新 '+j.works.length+' 个，可以用搜索或分区找更多。</p>':'')}
  catch(e){if(tok!==xrPlTok)return;box.innerHTML='<div class="of-empty">连不上仓库服务器<br><small>'+esc(e.message)+'</small><br><br><button class="of-mini" id="xr-retry" type="button">重试</button></div>';const b=$('#xr-retry');if(b)b.onclick=xrPlaza}}
+
+async function xrOtherPackageKind(w){
+ for(const a of (w&&w.files)||[]){let t='';try{t=await xrText(a)}catch(e){}if(!t)continue;const j=xrParse(t);
+  if(j&&j.app==='xsj-desktop-theme'&&j.desktop&&typeof j.desktop==='object')return'theme';
+  if(j&&j.app==='xsj-widgets'&&Array.isArray(j.widgets))return'widgets';
+ }
+ return'';
+}
 async function xrPlazaFetch(it){const j=await xrApi('/api/works/'+it.id+'/pack'),x=j&&j.works&&j.works[0];if(!x)throw new Error('作品内容为空');
  return{title:x.title||it.title,author:x.author||it.author||'',cat:XR_CATS.some(c=>c[0]===x.cat)?x.cat:'other',desc:x.desc||'',ts:x.ts||Date.now(),files:(x.files||[]).map(a=>({id:uid(),name:String(a.name),size:+a.size||0,mime:String(a.mime||''),enc:a.enc==='b'?'b':'t',data:String(a.data||'')}))}}
 async function xrPlazaImport(it){try{toast('正在下载…');const w=await xrPlazaFetch(it);await xrImportWork(w)}catch(e){toast('下载失败：'+e.message,4200)}}
 async function xrPlazaDetail(it){const wrap=$('#v-repo .of-wrap');if(!wrap)return;let w;try{toast('正在打开…');w=await xrPlazaFetch(it)}catch(e){return toast('打开失败：'+e.message,4200)}
- const mine=RPO().works.find(x=>x.pub&&x.pub.id===it.id),can=!!XR[w.cat],ov=document.createElement('div');ov.className='of-ov';
+ const mine=RPO().works.find(x=>x.pub&&x.pub.id===it.id),otherKind=w.cat==='other'?await xrOtherPackageKind(w):'',can=!!XR[w.cat]||!!otherKind,impLabel=otherKind==='theme'?'导入桌面美化':otherKind==='widgets'?'导入到我的小组件':can?'导入到「'+xrCatName(w.cat)+'」':'',ov=document.createElement('div');ov.className='of-ov';
  ov.innerHTML='<div class="of-top"><h1><button class="of-bk" id="xp-x" type="button">广场</button></h1></div><div class="of-fan"><div class="xr-hd"><h2>'+esc(w.title)+'</h2><p>'+esc((w.author||'佚名')+' · '+xrCatName(w.cat)+' · '+new Date(w.ts).toLocaleDateString('zh-CN'))+'</p></div>'
   +(w.desc?'<div class="of-g"><div class="of-r"><span class="xr-desc">'+esc(w.desc)+'</span></div></div>':'')
   +'<div class="of-gh">附件</div><div class="of-g">'+(w.files.map((f,i)=>'<div class="of-r"><div class="of-wbt"><b>'+esc(f.name)+'</b><small>'+xrSize(f.size||0)+'</small></div><button class="of-mini" data-dl="'+i+'" type="button">下载</button></div>').join('')||'<div class="of-r"><span class="v">没有附件</span></div>')+'</div>'
-  +(can?'<button class="of-gen xr-imp" id="xp-i" type="button">导入到「'+esc(xrCatName(w.cat))+'」</button>':'<p class="of-hint">「其他」分区的附件只能下载。</p>')
+  +(can?'<button class="of-gen xr-imp" id="xp-i" type="button">'+esc(impLabel)+'</button>':'<p class="of-hint">此作品暂不支持直接导入，可下载附件查看。</p>')
   +'<div class="of-ops"><button class="of-mini" id="xp-s" type="button">保存到我的仓库</button>'+(mine?'':'<button class="of-mini" id="xp-r" type="button" style="color:#ff3b30">举报</button>')+'</div></div>';
  wrap.appendChild(ov);const g=s=>ov.querySelector(s);
  g('#xp-x').onclick=()=>ov.remove();
