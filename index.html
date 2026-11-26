@@ -6308,17 +6308,20 @@ function draw(){
   const day=t=>new Date(t).toDateString();
   const tsWx=CC(cur).tsMode==='wx',WX_GAP=5*60000,wxT=t=>{const d=new Date(t),n=new Date(),z=x=>String(x).padStart(2,'0'),H=z(d.getHours())+':'+z(d.getMinutes()),k=Math.round((new Date(n.getFullYear(),n.getMonth(),n.getDate())-new Date(d.getFullYear(),d.getMonth(),d.getDate()))/864e5);if(k===0)return H;if(k===1)return'昨天 '+H;if(k>1&&k<7)return'周'+'日一二三四五六'[d.getDay()]+' '+H;if(d.getFullYear()===n.getFullYear())return(d.getMonth()+1)+'月'+d.getDate()+'日 '+H;return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日 '+H};
   const dvH=m=>tsWx?`<div class="wxt">${wxT(m.t)}</div>`:`<div class="dd">${ic('ca')}${new Date(m.t).toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'})} ›</div>`;
-  const _n=h.length,_pa=new Array(_n),_na=new Array(_n),_pv=new Array(_n),_nx=new Array(_n);
-  {let a=-1,v=-1;for(let i=0;i<_n;i++){_pa[i]=a;_pv[i]=v;const m=h[i];if(!m.recalled){a=i;if(!m.narr)v=i}}
-   a=-1;v=-1;for(let i=_n-1;i>=0;i--){_na[i]=a;_nx[i]=v;const m=h[i];if(!m.recalled){a=i;if(!m.narr)v=i}}}
+  const _n=h.length;
   window.__showN=window.__showN||{};const _SN=window.__showN[cur]||150,_st=Math.max(0,_n-_SN);
+  // 只为当前显示窗口建立相邻消息索引；历史消息仍完整保留，展开更早消息时再按需计算。
+  const _vis=_n-_st,_pa=new Array(_vis),_na=new Array(_vis),_pv=new Array(_vis),_nx=new Array(_vis);
+  {let a=-1,v=-1;for(let i=_st-1;i>=0&&(a<0||v<0);i--){const m=h[i];if(!m.recalled){if(a<0)a=i;if(v<0&&!m.narr)v=i}}
+   for(let i=_st;i<_n;i++){const j=i-_st;_pa[j]=a;_pv[j]=v;const m=h[i];if(!m.recalled){a=i;if(!m.narr)v=i}}
+   a=-1;v=-1;for(let i=_n-1;i>=_st;i--){const j=i-_st;_na[j]=a;_nx[j]=v;const m=h[i];if(!m.recalled){a=i;if(!m.narr)v=i}}}
   if(_st>0){const mb=document.createElement('button');mb.type='button';mb.className='msg-more';mb.textContent='查看更早的消息（还有 '+_st+' 条）';mb.style.cssText='display:block;margin:8px auto;padding:6px 14px;border:0;border-radius:14px;background:rgba(0,0,0,.06);color:inherit;font-size:13px';mb.onclick=()=>{window.__showN[cur]=_SN+150;draw();$('#msgs').scrollTop=0};box.appendChild(mb)}
   for(let i=_st;i<_n;i++){const m=h[i];
     if(m.recalled){bub(m,i,false,false);continue}
-    const pa=_pa[i]>=0?h[_pa[i]]:undefined,na=_na[i]>=0?h[_na[i]]:undefined;
+    const pa=_pa[i-_st]>=0?h[_pa[i-_st]]:undefined,na=_na[i-_st]>=0?h[_na[i-_st]]:undefined;
     const brk=tsWx?(m.t&&(!pa||!pa.t||m.t-pa.t>=WX_GAP)):(m.t&&(!pa||!pa.t||day(pa.t)!==day(m.t)));
     if(m.narr){if(brk)box.insertAdjacentHTML('beforeend',dvH(m));bub(m,i,false,false);continue}
-    const pv=_pv[i]>=0?h[_pv[i]]:undefined,nx=_nx[i]>=0?h[_nx[i]]:undefined;
+    const pv=_pv[i-_st]>=0?h[_pv[i-_st]]:undefined,nx=_nx[i-_st]>=0?h[_nx[i-_st]]:undefined;
     if(brk)box.insertAdjacentHTML('beforeend',dvH(m));
     bub(m,i,!pv||pv.role!==m.role||brk||!!(pa&&pa.narr),!nx||nx.role!==m.role||!!(na&&na.narr));
     if(selectedMsgIndices.has(i)){const rr=box.querySelector(`.r[data-i="${i}"]`);if(rr)rr.classList.add('multi-picked')}}
