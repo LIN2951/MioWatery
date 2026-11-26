@@ -6295,13 +6295,13 @@ function cleanChatByDate(pid){
 }
 function cleanChatDate(pid,mode){
  const hint=mode==='day'?'输入要清理的日期（YYYY-MM-DD）':'输入截止日期，清理这一天之前的消息（YYYY-MM-DD）';
- const value=prompt(hint,xsjStamp());if(value===null)return;const m=/^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(value.trim());
+ const value=prompt(hint,xsjStamp());if(value===null)return;const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
  if(!m)return toast('日期格式不正确，请使用 YYYY-MM-DD');
  const y=+m[1],mo=+m[2],d=+m[3],start=new Date(y,mo-1,d).getTime();
  if(new Date(y,mo-1,d).getFullYear()!==y||new Date(y,mo-1,d).getMonth()!==mo-1||new Date(y,mo-1,d).getDate()!==d)return toast('这个日期不存在');
  const end=start+86400000,old=S.chats[pid]||[],removed=old.filter(x=>x&&x.t&& (mode==='day'?(x.t>=start&&x.t<end):x.t<start));
  if(!removed.length)return toast('这个范围内没有聊天消息');
- const label=mode==='day'?value+' 当天':' '+value+' 之前';
+ const label=mode==='day'?value+' 当天':value+' 之前';
  if(!confirm('将清理'+label+'的 '+removed.length+' 条消息，其他日期的消息会保留。继续吗？'))return;
  const profile=S.activeUserProfile,kept=old.filter(x=>!removed.includes(x));S.chats[pid]=kept;save();if(cur===pid)draw();
  toastUndo('已清理 '+removed.length+' 条消息',()=>{if(profile!==S.activeUserProfile)return toast('当前用户资料已切换，无法撤销');if(S.chats[pid]!==kept)return toast('聊天记录已变化，无法撤销');S.chats[pid]=old;save();if(cur===pid)draw();toast('已恢复 '+removed.length+' 条消息')});
