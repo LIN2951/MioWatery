@@ -216,8 +216,10 @@ label{display:block;font-size:12px;color:var(--sub);margin:14px 0 6px}
 #modal>div{background:var(--p);border-radius:18px;padding:16px;width:100%;max-width:480px}
 #modal textarea{background:var(--fld);height:180px}
 #modal .bt{display:flex;gap:10px}
-#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:18px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:18px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .16s;z-index:20;max-width:calc(100vw - 32px)}
 #toast.on{opacity:1}
+#toast.has-action{pointer-events:auto;display:flex;align-items:center;gap:14px;white-space:nowrap}
+#toast.has-action button{border:0;background:transparent;color:inherit;font:inherit;font-weight:700;padding:2px 0;cursor:pointer;opacity:.9}
 
 /* character phone app */
 .rolephone-launch{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--p);margin:10px 0;cursor:pointer}
@@ -3355,7 +3357,7 @@ function xsjChatImport(pid){
     try{const txt=await f.text();let raw;
       if(/\.html?$/i.test(f.name)||/^\s*</.test(txt)){const el=new DOMParser().parseFromString(txt,'text/html').getElementById('xsj-data');if(!el)throw new Error('这个 HTML 不是本应用导出的聊天记录');raw=JSON.parse(el.textContent)}else raw=JSON.parse(txt);
       const arr=Array.isArray(raw)?raw:(raw&&raw.chat);
-      if(!Array.isArray(arr)||!arr.length||!arr.every(m=>m&&typeof m==='object'&&typeof m.role==='string'))throw new Error('文件里没有可识别的聊天记录');
+      if(!Array.isArray(arr)||!arr.every(m=>m&&typeof m==='object'&&typeof m.role==='string'))throw new Error('文件里没有可识别的聊天记录');
       const n0=(S.chats[pid]||[]).length;
       iosSheet({title:'导入 '+arr.length+' 条消息到当前聊天',items:[
         {label:'覆盖当前聊天（现有 '+n0+' 条将被替换）',run:()=>{S.chats[pid]=arr;save();draw();toast('已覆盖导入')}},
@@ -3653,7 +3655,8 @@ const ago=t=>new Date(t).toDateString()===new Date().toDateString()?hm(t):(new D
 function applyTheme(){const d=S.theme==='dark'||(S.theme==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);
   document.documentElement.dataset.theme=d?'dark':'light'}
 matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>S.theme==='auto'&&applyTheme());
-function toast(t,ms){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('on'),ms||2600)}
+function toast(t,ms){const e=$('#toast');e.classList.remove('has-action');e.textContent=t;e.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('on'),ms||2600)}
+function toastUndo(t,undo){const e=$('#toast');e.classList.add('on','has-action');e.textContent=t;const b=document.createElement('button');b.type='button';b.textContent='撤销';b.onclick=()=>{clearTimeout(toast.h);e.classList.remove('on','has-action');undo()};e.appendChild(b);clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('on','has-action'),6500)}
 
 function pick(cb){const i=document.createElement('input');i.type='file';i.accept='image/*';
   i.onchange=()=>{const f=i.files[0];if(!f)return;const im=new Image();
@@ -6280,9 +6283,28 @@ function showMsgMenu(groups){
  menu.style.left=x+'px';menu.style.top=y+'px';menu.style.setProperty('--ox',(p.x-x)+'px');menu.style.setProperty('--oy',(y>p.y?0:h)+'px');
 }
 function deleteFromHere(i){
- const h=S.chats[cur]||[];if(!Number.isInteger(i)||i<0||i>=h.length)return;
- const count=h.length-i;if(!confirm('确定从这条消息开始，删除当前消息及后面的全部 '+count+' 条消息吗？此操作不可撤销。'))return;
- h.splice(i);selectedMsgIndices.clear();multiSelectMode=false;save();draw();toast('已删除 '+count+' 条消息');
+ const pid=cur,h=S.chats[pid]||[];if(!Number.isInteger(i)||i<0||i>=h.length)return;
+ const count=h.length-i,removed=h.slice(i),profile=S.activeUserProfile;
+ h.splice(i);selectedMsgIndices.clear();multiSelectMode=false;save();
+ const box=$('#msgs'),target=box&&box.querySelector('[data-i="'+i+'"]');
+ if(target){let first=target,prev=target.previousElementSibling;if(prev&&prev.matches('.dd,.wxt'))first=prev;while(first){const next=first.nextSibling;first.remove();first=next}}
+ toastUndo('已删除 '+count+' 条消息',()=>{if(profile!==S.activeUserProfile)return toast('当前用户资料已切换，无法撤销');if(S.chats[pid]!==h)return toast('聊天记录已变化，无法撤销');h.splice(i,0,...removed);save();if(cur===pid)draw();toast('已恢复 '+count+' 条消息')});
+}
+function cleanChatByDate(pid){
+ iosSheet({title:'按日期清理',items:[{label:'清理某一天的消息',run:()=>cleanChatDate(pid,'day')},{label:'清理某一天之前的消息',run:()=>cleanChatDate(pid,'before')}]});
+}
+function cleanChatDate(pid,mode){
+ const hint=mode==='day'?'输入要清理的日期（YYYY-MM-DD）':'输入截止日期，清理这一天之前的消息（YYYY-MM-DD）';
+ const value=prompt(hint,xsjStamp());if(value===null)return;const m=/^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(value.trim());
+ if(!m)return toast('日期格式不正确，请使用 YYYY-MM-DD');
+ const y=+m[1],mo=+m[2],d=+m[3],start=new Date(y,mo-1,d).getTime();
+ if(new Date(y,mo-1,d).getFullYear()!==y||new Date(y,mo-1,d).getMonth()!==mo-1||new Date(y,mo-1,d).getDate()!==d)return toast('这个日期不存在');
+ const end=start+86400000,old=S.chats[pid]||[],removed=old.filter(x=>x&&x.t&& (mode==='day'?(x.t>=start&&x.t<end):x.t<start));
+ if(!removed.length)return toast('这个范围内没有聊天消息');
+ const label=mode==='day'?value+' 当天':' '+value+' 之前';
+ if(!confirm('将清理'+label+'的 '+removed.length+' 条消息，其他日期的消息会保留。继续吗？'))return;
+ const profile=S.activeUserProfile,kept=old.filter(x=>!removed.includes(x));S.chats[pid]=kept;save();if(cur===pid)draw();
+ toastUndo('已清理 '+removed.length+' 条消息',()=>{if(profile!==S.activeUserProfile)return toast('当前用户资料已切换，无法撤销');if(S.chats[pid]!==kept)return toast('聊天记录已变化，无法撤销');S.chats[pid]=old;save();if(cur===pid)draw();toast('已恢复 '+removed.length+' 条消息')});
 }
 function messageMenu(i){const h=S.chats[cur],m=h&&h[i];if(!m)return;const ast=m.role==='assistant';showMsgMenu([
  [{label:'多选消息',icon:'list',run:()=>{multiSelectMode=true;selectedMsgIndices.add(i);draw()}}],
@@ -6598,8 +6620,8 @@ function stkListAI(){const g=CC(cur).stkGroups||[];return g.length?S.stickers.fi
 function srch(on){$('#sbar').style.display=on?'flex':'none';$('#sres').style.display=on?'block':'none';$('#msgs').style.display=on?'none':'flex';
   if(on){$('#sq').value='';$('#sres').innerHTML='';$('#sq').focus()}}
 $('#sq').oninput=e=>{const q=e.target.value.trim().toLowerCase(),h=S.chats[cur]||[];
-  $('#sres').innerHTML=q?h.map((m,i)=>({m,i})).filter(x=>x.m.content.toLowerCase().includes(q)).map(x=>`<div class="row sr" data-si="${x.i}"><div><p>${esc(x.m.role==='user'?S.me.name:P(cur).name)}</p><small>${esc(x.m.content)}</small></div><span class="tm">${x.m.t?ago(x.m.t):''}</span></div>`).join('')||'<div class="empty">没有找到相关消息</div>':''};
-function jump(i){srch(0);const el=$('#msgs [data-i="'+i+'"]');if(!el)return;el.scrollIntoView({block:'center'});el.classList.remove('msg-flash');void el.offsetWidth;el.classList.add('msg-flash');setTimeout(()=>el.classList.remove('msg-flash'),1600)}
+  $('#sres').innerHTML=q?h.map((m,i)=>({m,i})).filter(x=>(String(x.m.content||'')+' '+quoteText(x.m)).toLowerCase().includes(q)).map(x=>`<div class="row sr" data-si="${x.i}"><div><p>${esc(x.m.role==='user'?S.me.name:P(cur).name)}</p><small>${esc(String(x.m.content||quoteText(x.m)))}</small></div><span class="tm">${x.m.t?ago(x.m.t):''}</span></div>`).join('')||'<div class="empty">没有找到相关消息</div>':''};
+function jump(i){const h=S.chats[cur]||[];if(i<0||i>=h.length)return;window.__showN=window.__showN||{};if(h.length-i>(window.__showN[cur]||150)){window.__showN[cur]=h.length-i+20;draw()}srch(0);const el=$('#msgs [data-i="'+i+'"]');if(!el)return;el.scrollIntoView({block:'center'});el.classList.remove('msg-flash');void el.offsetWidth;el.classList.add('msg-flash');setTimeout(()=>el.classList.remove('msg-flash'),1600)}
 
 /* chat settings */
 let csetPage='main';
@@ -6747,7 +6769,7 @@ function rCset(){
   <div class="is-h">聊天头像</div>
   <div class="is-g"><div class="is-c is-tap" id="cs-av-char"><div class="av">${av(chatAvU(p,false))}</div><span class="is-t"><b>角色头像</b><small>仅此聊天，不影响联系人页</small></span></div><div class="is-c is-tap" id="cs-av-me"><div class="av">${av(chatAvU(S.me,true))}</div><span class="is-t"><b>我的头像</b><small>从相册或头像库选择</small></span></div></div>
   <div class="is-h">聊天记录</div>
-  <div class="is-g"><div class="is-c is-tap" id="cs-chat-exp"><span class="is-t"><b>导出此聊天记录</b><small>HTML 或 JSON</small></span></div><div class="is-c is-tap" id="cs-chat-imp"><span class="is-t"><b>导入聊天记录</b><small>支持 HTML / JSON</small></span></div></div>
+  <div class="is-g"><div class="is-c is-tap" id="cs-chat-exp"><span class="is-t"><b>导出此聊天记录</b><small>HTML 或 JSON 备份</small></span></div><div class="is-c is-tap" id="cs-chat-imp"><span class="is-t"><b>导入 / 恢复聊天记录</b><small>支持 HTML / JSON，可覆盖或追加</small></span></div><div class="is-c is-tap" id="cs-chat-clean"><span class="is-t"><b>按日期清理聊天记录</b><small>清理某一天或某一天之前的消息，可撤销</small></span></div></div>
   <div class="is-h">调试</div>
   <div class="is-g"><div class="is-c is-tap" id="cs-lastp"><span class="is-t"><b>查看发给 AI 的内容</b><small>最近一次回复实际发送的提示词，可搜索</small></span><span class="is-chev">${rpSvg('chr')}</span></div></div>
   <div class="is-h">隐私</div>
@@ -6767,8 +6789,9 @@ function rCset(){
   $('#cs-css').onchange=e=>{cc.css=e.target.value;save()};
   $('#cs-vc').onchange=e=>{cc.vcPreset=e.target.value;save()};
   $('#cs-bl').onchange=e=>{p.blocked=e.target.checked;save()};
-  $('#cs-chat-exp').onclick=()=>iosSheet({title:'导出聊天记录',items:[{label:'导出为 HTML（可阅读，也能再导入）',run:()=>xsjChatExport(cur,'html')},{label:'导出为 JSON',run:()=>xsjChatExport(cur,'json')}]});
+  $('#cs-chat-exp').onclick=()=>iosSheet({title:'导出聊天记录',items:[{label:'导出为 HTML（可阅读，也能再导入）',run:()=>xsjChatExport(cur,'html')},{label:'导出为 JSON（完整备份）',run:()=>xsjChatExport(cur,'json')}]});
   $('#cs-chat-imp').onclick=()=>xsjChatImport(cur);
+  $('#cs-chat-clean').onclick=()=>cleanChatByDate(cur);
   $('#cs-av-char').onclick=()=>avChatPick(false);$('#cs-av-me').onclick=()=>avChatPick(true);
   $('#cs-wall').onclick=()=>pickWall(u=>{cc.wall=u;save();applyChatWall();rCset()});
   {const a=$('#cs-wall-all');if(a)a.onclick=()=>{S.chatWall=cc.wall;save();toast('已应用到所有聊天');rCset()}}
