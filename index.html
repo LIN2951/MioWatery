@@ -6756,7 +6756,7 @@ async function gen(){
   if(navigator.onLine===false){toast('当前网络不可用，聊天消息已保存在本地；联网后再让角色回复');return;}
   const redoNote=window.__redoNote||'';window.__redoNote='';
   const p=P(cur),h=S.chats[cur],gid=cur,ownerUser=S.activeUserProfile;
-  const genStillOwned=()=>S.activeUserProfile===ownerUser&&S.chatsByUser[ownerUser]&&S.chatsByUser[ownerUser][gid]===h;
+  const genStillOwned=()=>S.activeUserProfile===ownerUser&&cur===gid&&S.chatsByUser[ownerUser]&&S.chatsByUser[ownerUser][gid]===h;
   const stopStaleGen=()=>{if(genStillOwned())return false;if(THK&&THK.cid===gid&&THK.el===el){if(el&&el.parentNode)el.remove();THK=null}setBusy(0);return true};
   setBusy(1);const el=bub({role:'assistant',content:'···'},-1,1,0);THK={cid:gid,el};
   try{
