@@ -10696,6 +10696,17 @@ function dctDownload(json,name){
  const fn=String(name||'我的桌面').replace(/[\\\\/:*?"<>|]/g,'_').slice(0,60)+'.json';
  return dcwSaveFile(json,fn,'application/json;charset=utf-8')
 }
+async function dctSaveCurrentTheme(){
+ const name=await askText('保存当前美化','给这套桌面美化命名');
+ if(name===null)return;
+ const nm=String(name||'').trim().slice(0,40);
+ if(!nm)return toast('请输入美化方案名称');
+ const pack=dctBuild();pack.name=nm;
+ const r=dctSaveTheme(JSON.stringify(pack),nm);
+ if(r.bad)return toast(r.bad);
+ try{renderDesktopCustomizer()}catch(e){}
+ toast(r.skip?'这套美化方案已经保存过了':'已保存美化方案「'+nm+'」');
+}
 async function dctExport(){
  const name=await askText('美化包名称','给这套桌面起个名字');if(name===null)return;
  const nm=(name.trim()||'我的桌面').slice(0,40),pack=dctBuild();pack.name=nm;
@@ -10713,8 +10724,10 @@ function dctImportText(txt){
  const c=dctClean(o.desktop),nm=String(o.name||'').slice(0,40)||'未命名',nI=Object.keys(c.icons).length;
  if(!confirm('导入美化包「'+nm+'」？\n\n壁纸：'+(c.wallpaper?'有':'无')+'　图标：'+nI+' 个　小组件：'+c.widgets.length+' 个　自定义组件：'+c.wlib.length+' 个\n\n会替换你现在的壁纸、图标、小组件、自定义组件和摆放位置，天气城市等个人设置不受影响。\n建议先「导出当前桌面美化」留个备份。\n\n美化包里的自定义组件带有代码，在沙盒里运行，只导入你信任的来源。'))return false;
  const old=S.desktop||{},keep={};['wxData','wxCity','wxLat','wxLon'].forEach(k=>{if(old[k]!==undefined)keep[k]=old[k]});
+ const saved=dctSaveTheme(JSON.stringify({app:'xsj-desktop-theme',v:1,name:nm,desktop:c}),nm);
+ if(saved.bad){toast(saved.bad);return false}
  S.desktop=Object.assign({},c,keep);
- Promise.resolve(save()).then(ok=>{if(ok===false)return;toast('已导入，正在刷新…');setTimeout(()=>location.reload(),600)});
+ Promise.resolve(save()).then(ok=>{if(ok===false)return;try{renderDesktopCustomizer()}catch(e){}toast('已导入并保存为「'+nm+'」，正在刷新…');setTimeout(()=>location.reload(),600)});
  return true}
 function dctImportMenu(){
  dcwSheet('导入美化包',[
@@ -10724,7 +10737,7 @@ function dctImportMenu(){
 function dctPackUI(){
  const mk=(t,c,h)=>{const e=document.createElement(t);e.className=c;if(h!=null)e.innerHTML=h;return e};
  const row=(l,sub,fn)=>{const b=mk('button','dci-row','<span class="l">'+esc(l)+'</span><span class="r">'+esc(sub||'')+'</span><i class="ch">›</i>');b.type='button';b.onclick=fn;return b};
- const g=mk('div','dci-g');g.appendChild(row('导出当前桌面美化','壁纸 · 图标 · 组件 · 摆放',dctExport));g.appendChild(row('导入美化包','文件或粘贴代码',dctImportMenu));g.appendChild(row('我的美化方案',dctThemeList().length+' 套 · 可随时切换',dctThemeLibrary));
+ const g=mk('div','dci-g');g.appendChild(row('保存当前美化','命名并保存当前壁纸、图标、组件和摆放',dctSaveCurrentTheme));g.appendChild(row('导出当前桌面美化','壁纸 · 图标 · 组件 · 摆放',dctExport));g.appendChild(row('导入美化包','文件或粘贴代码',dctImportMenu));g.appendChild(row('我的美化方案',dctThemeList().length+' 套 · 可随时切换',dctThemeLibrary));
  return[mk('div','dci-h','美化包'),g,mk('div','dci-f','把现在的壁纸、软件图标、小组件、自定义组件和摆放位置打包成一个文件，发给别人就能一键换上同样的桌面。导入会替换你当前的桌面美化。')]}
 /* --- 长按桌面空白处 / 不可拖动的组件 --- */
 (function(){
