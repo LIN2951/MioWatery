@@ -6430,10 +6430,21 @@ function openPhotoDownloadSheet(m){
  ov.querySelector('.pds-single').onclick=async()=>{const ids=selected();for(const i of ids)await make([i],false)};
  ov.querySelector('.pds-merge').onclick=()=>make(selected(),true);
 }
+function removePhotoFromMessage(i,photoIndex){
+ const pid=cur,profile=S.activeUserProfile,h=S.chats[pid],m=h&&h[i],pics=m&&(Array.isArray(m.images)&&m.images.length?m.images:(m.image?[m.image]:[]));
+ if(!m||m.role!=='user'||!pics||!Number.isInteger(photoIndex)||photoIndex<0||photoIndex>=pics.length)return;
+ const before=h.slice();before[i]={...m,...(Array.isArray(m.images)?{images:m.images.slice()}:{} )};
+ if(Array.isArray(m.images)){m.images.splice(photoIndex,1);if(!m.images.length)delete m.images}
+ else delete m.image;
+ const left=Array.isArray(m.images)?m.images.length:(m.image?1:0);
+ if(!left&&!String(m.content||'').trim())h.splice(i,1);
+ save();if(cur===pid)draw();
+ toastUndo('已删除这张照片',()=>{if(profile!==S.activeUserProfile)return toast('当前用户资料已切换，无法撤销');if(S.chats[pid]!==h)return toast('聊天记录已变化，无法撤销');S.chats[pid]=before;save();if(cur===pid)draw();toast('照片已恢复')});
+}
 function photoMessageMenu(i,photoIndex){
  const h=S.chats[cur],m=h&&h[i],pics=m&&(Array.isArray(m.images)&&m.images.length?m.images:(m.image?[m.image]:[]));
  if(!m||m.role!=='user'||!pics||!Number.isInteger(photoIndex)||photoIndex<0||photoIndex>=pics.length)return;
- showMsgMenu([[{label:'设为我的头像',icon:'user',run:()=>setAvatarFromMessage(m,'me',photoIndex)},{label:'设为角色头像',icon:'user',run:()=>setAvatarFromMessage(m,'role',photoIndex)},{label:'下载照片',icon:'download',run:()=>openPhotoDownloadSheet(m)}]]);
+ showMsgMenu([[{label:'设为我的头像',icon:'user',run:()=>setAvatarFromMessage(m,'me',photoIndex)},{label:'设为角色头像',icon:'user',run:()=>setAvatarFromMessage(m,'role',photoIndex)},{label:'下载照片',icon:'download',run:()=>openPhotoDownloadSheet(m)},{label:'删除这张照片',icon:'trash',danger:1,run:()=>{if(cur!==m._chatId&&S.chats[cur]!==h)return toast('聊天对象已切换，未删除照片');removePhotoFromMessage(i,photoIndex)}}]]);
 }
 function searchCurrentChat(){
   const h=S.chats[cur]||[],term=prompt('搜索当前角色的聊天记录','');if(term===null)return;
