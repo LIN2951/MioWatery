@@ -6285,7 +6285,7 @@ function openChatPhotoGallery(msgIndex,startIndex){
  ov.querySelector('.cpg-next').onclick=()=>move(1);
  ov.addEventListener('click',e=>{if(e.target===ov)close()});
  stage.addEventListener('pointerdown',e=>{
-  if(moving||e.button!==0||imgs.length<2)return;
+  if(moving||e.button!==0||imgs.length<2||e.target.closest('button'))return;
   pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;deltaX=0;dragging=true;
   try{stage.setPointerCapture(pointerId)}catch(_){}
   setTrack(0,false);
