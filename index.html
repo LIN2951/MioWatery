@@ -123,7 +123,7 @@ svg{width:20px;height:20px;flex:none}
 .pi b{font-size:20px;display:flex;align-items:center;gap:4px}
 .pi p{margin:8px 0}
 .profile-tabs{display:flex;width:100%;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;flex:none}.profile-tabs button{flex:1;min-width:max-content;padding:13px 12px 10px;color:#a3a3a3;font-size:15px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap}.profile-tabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
-.decor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.decor-img{position:relative;aspect-ratio:1.6;overflow:hidden;border-radius:0;background:#e5e5e5;display:block;border:0}.decor-img img{width:100%;height:100%;object-fit:cover;display:block}.decor-img .slot-plus{position:absolute;inset:0;display:grid;place-items:center;color:#999;font-size:24px;pointer-events:none}.decor-img button{position:absolute;right:5px;top:5px;width:24px;height:24px;border-radius:50%;background:#0009;color:#fff;font-size:18px;line-height:1;z-index:2}
+.decor-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.decor-add{min-height:100px;aspect-ratio:1.6;border:1px dashed #888;background:transparent;color:var(--sub);display:grid;place-items:center;font-size:14px;cursor:pointer}.decor-add span{font-size:26px;line-height:1}.decor-img{position:relative;aspect-ratio:1.6;overflow:hidden;border-radius:0;background:#e5e5e5;display:block;border:0}.decor-img img{width:100%;height:100%;object-fit:cover;display:block}.decor-img .slot-plus{position:absolute;inset:0;display:grid;place-items:center;color:#999;font-size:24px;pointer-events:none}.decor-img button{position:absolute;right:5px;top:5px;width:24px;height:24px;border-radius:50%;background:#0009;color:#fff;font-size:18px;line-height:1;z-index:2}
 async function makeVoice(text){
  const c=S.cfg||{};if(!c.voiceEnabled)return 'simulated-voice';if(!c.voiceKey)throw new Error('请先到设置 → 语音接入（MiniMax）填写 API Key');
  let base=(c.voiceBase||'https://api.minimax.io/v1').replace(/\/+$/,'');let url=base+'/t2a_v2';if(c.voiceGroupId)url+='?GroupId='+encodeURIComponent(c.voiceGroupId);
@@ -3805,7 +3805,8 @@ function profileDecorKey(id){return id==='me'?'user:'+(S.activeUserProfile||'u1'
 function profileDecorGet(id){const k=profileDecorKey(id);S.profileDecorations=S.profileDecorations||{};if(!Array.isArray(S.profileDecorations[k]))S.profileDecorations[k]=[];return S.profileDecorations[k]}
 function profileSlots(id){
   const imgs=profileDecorGet(id);
-  return `<div style="margin:14px 16px"><div class="decor-grid">${[0,1].map(i=>{const im=imgs[i];return `<div class="decor-img" data-decor-slot="${i}" role="button" aria-label="${im?'更换图片':'添加图片'}">${im?`<img src="${esc(im)}" alt="装饰图片">`:''}${im?`<button data-decor-del="${i}" aria-label="删除图片">×</button>`:''}</div>`}).join('')}</div></div>`
+  const cards=imgs.map((im,i)=>im?`<div class="decor-img" data-decor-slot="${i}" role="button" aria-label="更换图片"><img src="${esc(im)}" alt="装饰图片"><button data-decor-del="${i}" aria-label="删除图片">×</button></div>`:'').join('');
+  return `<div style="margin:14px 16px"><div class="decor-grid">${cards}<button type="button" class="decor-add" data-decor-add><span>＋</span>添加照片</button></div></div>`
 }
 function profileTabContent(id,ps){
   if(profileTab==='posts')return (ps.map(o=>post(o)).join('')||'<div class="empty">还没有帖子</div>')+profileSlots(id);
@@ -6123,9 +6124,10 @@ function bindEmbeddedProfile(){
   const bgBtn=root.querySelector('#change-user-bg');if(bgBtn)bgBtn.onclick=()=>pickImage(src=>{const x=active();if(x)x.background=src;save();rApp()});
   root.querySelectorAll('[data-profile-tab]').forEach(b=>b.onclick=()=>{profileTab=b.dataset.profileTab;rApp()});
   if(profileTab==='media')avLibBind(rApp);
-  root.querySelectorAll('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickImage(src=>{const imgs=profileDecorGet('me');imgs[i]=src;imgs.length=2;save();rApp()})});
+  root.querySelectorAll('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickImage(src=>{profileDecorGet('me')[i]=src;save();rApp()})});
+  root.querySelectorAll('[data-decor-add]').forEach(el=>el.onclick=()=>pickImage(src=>{profileDecorGet('me').push(src);save();rApp()}));
   root.querySelectorAll('[data-decor-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();profileDecorGet('me')[+b.dataset.decorDel]=null;save();rApp()});
-  const link=root.querySelector('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');const imgs=profileDecorGet('me'),idx=imgs.findIndex(x=>!x);imgs[idx<0?0:idx]=url.trim();imgs.length=2;save();rApp()};
+  const link=root.querySelector('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');profileDecorGet('me').push(url.trim());save();rApp()};
   bindUserProfile(root,rApp);
 }
 function rProf(){
@@ -6144,9 +6146,10 @@ function rProf(){
   function bindProfileContent(){
     if(profileTab==='stickers')renderStickerManager('profile');
     if(profileTab==='media'&&PID==='me')avLibBind(renderTab);
-    $$('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickImage(src=>{const imgs=profileDecorGet(PID);imgs[i]=src;imgs.length=2;save();renderTab()})});
+    $('[data-decor-slot]').forEach(el=>el.onclick=e=>{if(e.target.closest('[data-decor-del]'))return;const i=+el.dataset.decorSlot;pickImage(src=>{profileDecorGet(PID)[i]=src;save();renderTab()})});
+    $('[data-decor-add]').forEach(el=>el.onclick=()=>pickImage(src=>{profileDecorGet(PID).push(src);save();renderTab()}));
     $$('[data-decor-del]').forEach(b=>b.onclick=e=>{e.stopPropagation();profileDecorGet(PID)[+b.dataset.decorDel]=null;save();renderTab()});
-    const link=$('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');const imgs=profileDecorGet(PID),idx=imgs.findIndex(x=>!x);imgs[idx<0?0:idx]=url.trim();imgs.length=2;save();renderTab()};
+    const link=$('#decor-add-url-open');if(link)link.onclick=()=>{const url=prompt('粘贴图片链接（http/https）');if(!url)return;if(!/^https?:\/\//i.test(url.trim()))return toast('请输入有效的图片链接');profileDecorGet(PID).push(url.trim());save();renderTab()};
   }
   bindProfileContent();
   bindUserProfile($('#pbody'),rProf);
