@@ -5631,7 +5631,7 @@ function fvDay(t){const d=new Date(t),n=new Date(),df=Math.round((new Date(n.get
   if(df===0)return'<b>今天</b>';if(df===1)return'<b>昨天</b>';return'<b>'+String(d.getDate()).padStart(2,'0')+'</b><small>'+(d.getMonth()+1)+'月</small>'}
 function fvHTML(){
   const n=fvSlots(),cv=fvCovers(),list=fvMsgs().slice().sort((a,b)=>((a.t||a.favAt||0)-(b.t||b.favAt||0))||((a.favAt||0)-(b.favAt||0)));
-  const cards=Array.from({length:n},(_,i)=>`<div class="fv-card${cv[i]?' has':''}" data-fv-i="${i}">${cv[i]?`<img src="${esc(cv[i])}" alt="" draggable="false">`:''}</div>`).join('');
+  const cards=Array.from({length:n},(_,i)=>`<div class="fv-card${cv[i]?' has':''}" data-fv-i="${i}">${cv[i]?`<img src="${esc(cv[i])}" alt="" draggable="false"><button type="button" class="fv-cover-del" data-fv-del="${i}" aria-label="删除这张卡面图片">×</button>`:`<span class="fv-cover-add">添加封面照片</span>`}</div>`).join('');
   let prev='';
   const items=list.map(f=>{
     const u=who(f.role==='user'?'me':f.pid),d=new Date(f.t||f.favAt||Date.now()),dk=d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(),first=dk!==prev;prev=dk;
@@ -5652,14 +5652,31 @@ function fvLayout(st){
     c.style.opacity=ad>3.2?'0':'1';c.style.pointerEvents=ad>3.2?'none':'auto'
   })
 }
+function fvPickCover(i){
+ const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('aria-label','选择收藏卡面照片');
+ input.style.cssText='position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.001;z-index:2147483647';
+ document.body.appendChild(input);let finished=false;
+ const clean=()=>{if(finished)return;finished=true;setTimeout(()=>input.remove(),0)};
+ input.addEventListener('change',()=>{
+  const file=input.files&&input.files[0];if(!file){clean();return}
+  if(!file.type||file.type.indexOf('image/')!==0){toast('请选择图片文件');clean();return}
+  const reader=new FileReader();
+  reader.onload=()=>{const src=reader.result;if(typeof src!=='string'){toast('图片读取失败');clean();return}
+   fvCompress(src,out=>{const covers=fvCovers();while(covers.length<fvSlots())covers.push('');covers[i]=out;save();rApp();toast('封面照片已更新');clean()})
+  };
+  reader.onerror=()=>{toast('图片读取失败，请重试');clean()};
+  reader.readAsDataURL(file);
+ },{once:true});
+ input.addEventListener('cancel',clean,{once:true});
+ try{input.click()}catch(e){clean();toast('无法打开相册，请重试')}
+ setTimeout(clean,120000);
+}
 function fvCardMenu(i){
-  const cv=fvCovers(),has=!!cv[i],pad=()=>{while(cv.length<fvSlots())cv.push('')};
-  showFeedSheet([
-    {label:has?'更换图片':'添加图片',run:()=>pickImage(src=>fvCompress(src,o=>{pad();cv[i]=o;save();rApp()}))},
-    ...(has?[{label:'清除图片',run:()=>{pad();cv[i]='';save();rApp()}}]:[]),
-    {label:'新增一张卡面',run:()=>{pad();cv.push('');FV.ci=cv.length-1;save();rApp()}},
-    ...(fvSlots()>5?[{label:'删除这张卡面',run:()=>{pad();cv.splice(i,1);FV.ci=Math.max(0,Math.min(i,fvSlots()-1));save();rApp()}}]:[]),
-    {label:'取消',run:()=>{}}])
+ const cv=fvCovers(),has=!!cv[i];
+ showFeedSheet([
+  {label:has?'更换封面照片':'上传封面照片',run:()=>fvPickCover(i)},
+  {label:'新增一张卡面',run:()=>{cv.push('');FV.ci=cv.length-1;save();rApp()}},
+  {label:'取消',run:()=>{}}])
 }
 function fvBind(root){
   const st=root.querySelector('#fv-stage');if(!st)return;
@@ -5673,6 +5690,7 @@ function fvBind(root){
     const c=e.target.closest&&e.target.closest('.fv-card');if(!c)return;const i=+c.dataset.fvI;
     if(i!==FV.ci){FV.ci=i;FV.pos=i;fvLayout(st)}else fvCardMenu(i)};
   st.onpointerup=end;st.onpointercancel=e=>{down=0;st.classList.remove('drag');FV.ci=Math.round(FV.pos);FV.pos=FV.ci;fvLayout(st)};
+  st.querySelectorAll('[data-fv-del]').forEach(btn=>btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();const i=Number(btn.dataset.fvDel);const cv=fvCovers();if(!Number.isInteger(i)||i<0||i>=cv.length)return;cv[i]='';save();rApp();toast('已删除封面照片')}));
   root.querySelectorAll('[data-fv-m]').forEach(el=>el.onclick=()=>{const f=fvMsgs().find(x=>x.id===el.dataset.fvM);if(!f)return;
     showFeedSheet([...(f.img?[{label:'查看大图',run:()=>{const o=document.createElement('div');o.className='fv-ov';o.innerHTML='<img src="'+esc(f.img)+'" alt="">';o.onclick=()=>o.remove();document.body.appendChild(o)}}]:[]),...(f.text?[{label:'复制文字',run:()=>ofCopy(f.text)}]:[]),{label:'取消收藏',run:()=>{S.msgFavs=fvMsgs().filter(x=>x.id!==f.id);save();rApp();toast('已取消收藏')}},{label:'取消',run:()=>{}}])})
 }
@@ -13835,9 +13853,16 @@ box-shadow:inset 0 0 0 1px rgba(255,255,255,.65),inset 0 1px 0 rgba(255,255,255,
 </style>
 
 <style id="photo-stack-cleanup">
-#msgs .r .m.image-msg{width:fit-content!important;max-width:min(78vw,360px)!important;min-width:0!important;background:transparent!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}
+#msgs .r .m.image-msg{width:fit-content!important;max-width:min(68vw,300px)!important;min-width:0!important;background:transparent!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}
 #msgs .r .m.image-msg .chat-photo-stack{display:flex!important;flex-direction:column!important;gap:0!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;border:0!important;border-radius:0!important;background:transparent!important}
 #msgs .r .m.image-msg .chat-photo-stack .chat-photo-thumb{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;max-height:none!important;object-fit:contain!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;scroll-snap-align:none!important;user-select:none;-webkit-user-drag:none}
+</style>
+
+<style id="fv-cover-controls">
+.fv-card{position:relative;cursor:pointer}
+.fv-cover-add{display:grid;place-items:center;width:100%;height:100%;font-size:13px;color:#777;letter-spacing:.04em;pointer-events:none}
+[data-theme=dark] .fv-cover-add{color:#aaa}
+.fv-cover-del{position:absolute;right:9px;top:9px;z-index:5;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.68);color:#fff;font-size:23px;line-height:1;font-weight:300;box-shadow:0 1px 5px rgba(0,0,0,.2)}
 </style>
 </body>
 </html>
