@@ -5631,7 +5631,7 @@ function fvDay(t){const d=new Date(t),n=new Date(),df=Math.round((new Date(n.get
   if(df===0)return'<b>今天</b>';if(df===1)return'<b>昨天</b>';return'<b>'+String(d.getDate()).padStart(2,'0')+'</b><small>'+(d.getMonth()+1)+'月</small>'}
 function fvHTML(){
   const n=fvSlots(),cv=fvCovers(),list=fvMsgs().slice().sort((a,b)=>((a.t||a.favAt||0)-(b.t||b.favAt||0))||((a.favAt||0)-(b.favAt||0)));
-  const cards=Array.from({length:n},(_,i)=>`<div class="fv-card${cv[i]?' has':''}" data-fv-i="${i}">${cv[i]?`<img src="${esc(cv[i])}" alt="" draggable="false"><button type="button" class="fv-cover-del" data-fv-del="${i}" aria-label="删除这张卡面图片">×</button>`:`<span class="fv-cover-add">添加封面照片</span>`}</div>`).join('');
+  const cards=Array.from({length:n},(_,i)=>`<div class="fv-card${cv[i]?' has':''}" data-fv-i="${i}">${cv[i]?`<img src="${esc(cv[i])}" alt="" draggable="false">`:''}</div>`).join('');
   let prev='';
   const items=list.map(f=>{
     const u=who(f.role==='user'?'me':f.pid),d=new Date(f.t||f.favAt||Date.now()),dk=d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(),first=dk!==prev;prev=dk;
@@ -5679,22 +5679,25 @@ function fvCardMenu(i){
   {label:'取消',run:()=>{}}])
 }
 function fvBind(root){
-  const st=root.querySelector('#fv-stage');if(!st)return;
-  const n=st.children.length;if(FV.ci<0)FV.ci=Math.floor((n-1)/2);FV.ci=Math.max(0,Math.min(FV.ci,n-1));FV.pos=FV.ci;fvLayout(st);
-  let sx=0,sp=0,down=0,moved=0,t0=0,pid=0;
-  st.onpointerdown=e=>{down=1;moved=0;sx=e.clientX;sp=FV.pos;t0=Date.now();pid=e.pointerId};
-  st.onpointermove=e=>{if(!down)return;const dx=e.clientX-sx;if(!moved&&Math.abs(dx)>8){moved=1;st.classList.add('drag');try{st.setPointerCapture(pid)}catch(_){}}
-    if(moved){const cw=st.children[0].offsetWidth;FV.pos=Math.max(0,Math.min(n-1,sp-dx/(cw*.45)));fvLayout(st)}};
-  const end=e=>{if(!down)return;down=0;st.classList.remove('drag');
-    if(moved){const v=(e.clientX-sx)/Math.max(1,Date.now()-t0);FV.ci=Math.max(0,Math.min(n-1,Math.round(FV.pos-v*.9)));FV.pos=FV.ci;fvLayout(st);return}
-    const c=e.target.closest&&e.target.closest('.fv-card');if(!c)return;const i=+c.dataset.fvI;
-    if(i!==FV.ci){FV.ci=i;FV.pos=i;fvLayout(st)}else fvCardMenu(i)};
-  st.onpointerup=end;st.onpointercancel=e=>{down=0;st.classList.remove('drag');FV.ci=Math.round(FV.pos);FV.pos=FV.ci;fvLayout(st)};
-  st.querySelectorAll('[data-fv-del]').forEach(btn=>btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();const i=Number(btn.dataset.fvDel);const cv=fvCovers();if(!Number.isInteger(i)||i<0||i>=cv.length)return;cv[i]='';save();rApp();toast('已删除封面照片')}));
-  root.querySelectorAll('[data-fv-m]').forEach(el=>el.onclick=()=>{const f=fvMsgs().find(x=>x.id===el.dataset.fvM);if(!f)return;
-    showFeedSheet([...(f.img?[{label:'查看大图',run:()=>{const o=document.createElement('div');o.className='fv-ov';o.innerHTML='<img src="'+esc(f.img)+'" alt="">';o.onclick=()=>o.remove();document.body.appendChild(o)}}]:[]),...(f.text?[{label:'复制文字',run:()=>ofCopy(f.text)}]:[]),{label:'取消收藏',run:()=>{S.msgFavs=fvMsgs().filter(x=>x.id!==f.id);save();rApp();toast('已取消收藏')}},{label:'取消',run:()=>{}}])})
+ const st=root.querySelector('#fv-stage');if(!st)return;
+ const n=st.children.length;if(FV.ci<0)FV.ci=Math.floor((n-1)/2);FV.ci=Math.max(0,Math.min(FV.ci,n-1));FV.pos=FV.ci;fvLayout(st);
+ let sx=0,sp=0,down=0,moved=0,t0=0,pid=0;
+ st.onpointerdown=e=>{down=1;moved=0;sx=e.clientX;sp=FV.pos;t0=Date.now();pid=e.pointerId};
+ st.onpointermove=e=>{if(!down)return;const dx=e.clientX-sx;if(!moved&&Math.abs(dx)>8){moved=1;st.classList.add('drag');try{st.setPointerCapture(pid)}catch(_){}}if(moved){const cw=st.children[0].offsetWidth;FV.pos=Math.max(0,Math.min(n-1,sp-dx/(cw*.45)));fvLayout(st)}};
+ const end=e=>{
+  if(!down)return;down=0;st.classList.remove('drag');
+  if(moved){const v=(e.clientX-sx)/Math.max(1,Date.now()-t0);FV.ci=Math.max(0,Math.min(n-1,Math.round(FV.pos-v*.9)));FV.pos=FV.ci;fvLayout(st);return}
+  const c=e.target.closest&&e.target.closest('.fv-card');if(!c)return;
+  const i=Number(c.dataset.fvI),cv=fvCovers(),rect=c.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
+  if(cv[i]&&x>=rect.width*.72&&y<=rect.height*.28){cv[i]='';save();rApp();toast('封面照片已移除');return}
+  if(i!==FV.ci){FV.ci=i;FV.pos=i;fvLayout(st);return}
+  fvCardMenu(i);
+ };
+ st.onpointerup=end;
+ st.onpointercancel=()=>{down=0;st.classList.remove('drag');FV.ci=Math.round(FV.pos);FV.pos=FV.ci;fvLayout(st)};
+ root.querySelectorAll('[data-fv-m]').forEach(el=>el.onclick=()=>{const f=fvMsgs().find(x=>x.id===el.dataset.fvM);if(!f)return;
+  showFeedSheet([...(f.img?[{label:'查看大图',run:()=>{const o=document.createElement('div');o.className='fv-ov';o.innerHTML='<img src="'+esc(f.img)+'" alt="">';o.onclick=()=>o.remove();document.body.appendChild(o)}}]:[]),...(f.text?[{label:'复制文字',run:()=>ofCopy(f.text)}]:[]),{label:'取消收藏',run:()=>{S.msgFavs=fvMsgs().filter(x=>x.id!==f.id);save();rApp();toast('已取消收藏')}},{label:'取消',run:()=>{}}])})
 }
-
 /* app tabs */
 const TT=['联系人','收藏','朋友圈','我的'];
 function rApp(){
@@ -6400,10 +6403,26 @@ function setAvatarFromMessage(m,target,photoIndex){
   }
  },360);
 }
+function openPhotoDownloadSheet(m){
+ const pics=Array.isArray(m.images)&&m.images.length?m.images:(m.image?[m.image]:[]);if(!pics.length)return toast('没有可下载的照片');
+ const ov=document.createElement('div');ov.id='photo-download-sheet';ov.className='photo-download-sheet';
+ ov.innerHTML='<div class="pds-panel"><div class="pds-head"><b>选择要下载的照片</b><button type="button" class="pds-close">×</button></div><div class="pds-grid">'+pics.map((src,i)=>'<label class="pds-item"><input type="checkbox" checked data-pds-i="'+i+'"><img src="'+esc(src)+'" alt="照片 '+(i+1)+'"><span>图 '+(i+1)+'</span></label>').join('')+'</div><div class="pds-actions"><button type="button" class="pds-single">下载选中原图</button><button type="button" class="pds-merge">合并下载</button></div><p class="pds-hint">可勾选任意照片组合，合并后按顺序纵向拼接。</p></div>';
+ document.body.appendChild(ov);const selected=()=>[...ov.querySelectorAll('[data-pds-i]:checked')].map(x=>+x.dataset.pdsI);
+ ov.querySelector('.pds-close').onclick=()=>ov.remove();ov.addEventListener('click',e=>{if(e.target===ov)ov.remove()});
+ const load=src=>new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(Error('图片读取失败'));im.src=src});
+ const saveCanvas=(c,name)=>new Promise((resolve,reject)=>c.toBlob(blob=>{if(!blob)return reject(Error('图片生成失败'));const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);resolve()},'image/jpeg',.94));
+ const make=async(ids,merge)=>{if(!ids.length)return toast('请先选择照片');try{const imgs=await Promise.all(ids.map(i=>load(pics[i]))),ws=imgs.map(x=>x.naturalWidth||x.width),hs=imgs.map(x=>x.naturalHeight||x.height),scale=Math.min(1,2400/Math.max(...ws)),w=ws.map(x=>Math.max(1,Math.round(x*scale))),h=hs.map((x,i)=>Math.max(1,Math.round(x*scale)));
+ const c=document.createElement('canvas');c.width=Math.max(...w);c.height=merge?h.reduce((a,b)=>a+b,0):h[0];const ctx=c.getContext('2d');if(!ctx)throw Error('无法生成图片');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);
+ if(merge){let y=0;imgs.forEach((im,i)=>{ctx.drawImage(im,0,y,w[i],h[i]);y+=h[i]})}else ctx.drawImage(imgs[0],0,0,w[0],h[0]);
+ await saveCanvas(c,merge?'Float-拼接照片.jpg':'Float-照片-'+(ids[0]+1)+'.jpg');toast(merge?'拼接照片已下载':'照片已下载')
+ }catch(e){toast(e.message||'下载失败')}};
+ ov.querySelector('.pds-single').onclick=async()=>{const ids=selected();for(const i of ids)await make([i],false)};
+ ov.querySelector('.pds-merge').onclick=()=>make(selected(),true);
+}
 function photoMessageMenu(i,photoIndex){
  const h=S.chats[cur],m=h&&h[i],pics=m&&(Array.isArray(m.images)&&m.images.length?m.images:(m.image?[m.image]:[]));
  if(!m||m.role!=='user'||!pics||!Number.isInteger(photoIndex)||photoIndex<0||photoIndex>=pics.length)return;
- showMsgMenu([[{label:'设为我的头像',icon:'user',run:()=>setAvatarFromMessage(m,'me',photoIndex)},{label:'设为角色头像',icon:'user',run:()=>setAvatarFromMessage(m,'role',photoIndex)}]]);
+ showMsgMenu([[{label:'设为我的头像',icon:'user',run:()=>setAvatarFromMessage(m,'me',photoIndex)},{label:'设为角色头像',icon:'user',run:()=>setAvatarFromMessage(m,'role',photoIndex)},{label:'下载照片',icon:'download',run:()=>openPhotoDownloadSheet(m)}]]);
 }
 function messageMenu(i){const h=S.chats[cur],m=h&&h[i];if(!m)return;const ast=m.role==='assistant';if(m.errorMessage){showMsgMenu([[{label:'删除错误消息',icon:'trash',danger:1,run:()=>{const pid=cur,before=h.slice();h.splice(i,1);save();draw();offerChatUndo(pid,before,h,1,'已删除错误消息')}}]]);return}const hasPhotos=!!(m.image||Array.isArray(m.images)&&m.images.length),groups=[
  [{label:'多选消息',icon:'list',run:()=>{multiSelectMode=true;selectedMsgIndices.add(i);draw()}}],
@@ -13853,16 +13872,14 @@ box-shadow:inset 0 0 0 1px rgba(255,255,255,.65),inset 0 1px 0 rgba(255,255,255,
 </style>
 
 <style id="photo-stack-cleanup">
-#msgs .r .m.image-msg{width:fit-content!important;max-width:min(68vw,300px)!important;min-width:0!important;background:transparent!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}
+#msgs .r .m.image-msg{width:fit-content!important;max-width:min(46vw,200px)!important;min-width:0!important;background:transparent!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}
 #msgs .r .m.image-msg .chat-photo-stack{display:flex!important;flex-direction:column!important;gap:0!important;width:100%!important;max-width:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;border:0!important;border-radius:0!important;background:transparent!important}
 #msgs .r .m.image-msg .chat-photo-stack .chat-photo-thumb{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;max-height:none!important;object-fit:contain!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;scroll-snap-align:none!important;user-select:none;-webkit-user-drag:none}
 </style>
 
-<style id="fv-cover-controls">
-.fv-card{position:relative;cursor:pointer}
-.fv-cover-add{display:grid;place-items:center;width:100%;height:100%;font-size:13px;color:#777;letter-spacing:.04em;pointer-events:none}
-[data-theme=dark] .fv-cover-add{color:#aaa}
-.fv-cover-del{position:absolute;right:9px;top:9px;z-index:5;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.68);color:#fff;font-size:23px;line-height:1;font-weight:300;box-shadow:0 1px 5px rgba(0,0,0,.2)}
+
+<style id="photo-download-sheet-style">
+.photo-download-sheet{position:fixed;inset:0;z-index:100500;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.48);padding:12px;box-sizing:border-box}.pds-panel{width:min(100%,520px);max-height:82vh;overflow:auto;background:#fff;color:#171717;border-radius:22px;padding:16px;box-sizing:border-box}.pds-head{display:flex;align-items:center;justify-content:space-between;font-size:16px;margin-bottom:14px}.pds-close{border:0;background:#eee;border-radius:50%;width:32px;height:32px;font-size:22px}.pds-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.pds-item{position:relative;display:block;min-width:0}.pds-item img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#eee}.pds-item input{position:absolute;top:7px;left:7px;width:20px;height:20px;z-index:1;accent-color:#111}.pds-item span{display:block;text-align:center;font-size:12px;color:#555;margin-top:4px}.pds-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:16px}.pds-actions button{border:0;border-radius:12px;padding:13px 8px;background:#171717;color:#fff;font-size:14px}.pds-hint{font-size:12px;color:#777;margin:10px 0 0}
 </style>
 </body>
 </html>
