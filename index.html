@@ -6434,8 +6434,8 @@ function searchCurrentChat(){
   for(let i=0;i<h.length;i++){const m=h[i];if(!m||m.recalled)continue;const body=[m.content,quoteText(m),m.reasoning].filter(Boolean).join(' ').toLocaleLowerCase();if(body.includes(q))hits.push(i)}
   if(!hits.length)return toast('没有找到相关消息');
   if(hits.length===1){jumpToMsg(h[hits[0]].t,h[hits[0]].role,quoteText(h[hits[0]]));return toast('找到 1 条消息')}
-  const lines=hits.slice(-30).reverse().map((i,n)=>{const m=h[i],txt=String(m.content||quoteText(m)||'').replace(/\\s+/g,' ').trim().slice(0,54);return (n+1)+'. '+(m.role==='user'?'我':'角色')+' · '+(txt||'[媒体消息]')}).join('\\n');
-  const pick=prompt('找到 '+hits.length+' 条，输入序号跳转（显示最近 30 条，1 为最新）：\\n'+lines,'1');
+  const lines=hits.slice(-30).reverse().map((i,n)=>{const m=h[i],txt=String(m.content||quoteText(m)||'').replace(/\s+/g,' ').trim().slice(0,54);return (n+1)+'. '+(m.role==='user'?'我':'角色')+' · '+(txt||'[媒体消息]')}).join('\n');
+  const pick=prompt('找到 '+hits.length+' 条，输入序号跳转（显示最近 30 条，1 为最新）：\n'+lines,'1');
   if(pick===null)return;const n=Number(pick);if(!Number.isInteger(n)||n<1||n>Math.min(30,hits.length))return toast('序号无效');
   const i=hits.slice(-30).reverse()[n-1];jumpToMsg(h[i].t,h[i].role,quoteText(h[i]));
 }
