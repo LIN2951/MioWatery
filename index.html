@@ -10363,11 +10363,22 @@ function dcwEditor(o){
 }
 /* --- 导入 / 导出 --- */
 function dcwCopy(t){const ok=()=>toast('已复制到剪贴板'),fb=()=>{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();try{document.execCommand('copy');ok()}catch(e){toast('复制失败')}a.remove()};if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,fb);else fb()}
+function dcwSaveFile(data,filename,mime){
+ const blob=data instanceof Blob?data:new Blob([data],{type:mime||'application/octet-stream'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=filename;a.rel='noopener';a.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+ document.body.appendChild(a);
+ try{a.click()}catch(e){a.remove();URL.revokeObjectURL(url);toast('下载失败：'+((e&&e.message)||'浏览器未允许下载'));return false}
+ setTimeout(()=>{a.remove();URL.revokeObjectURL(url)},30000);
+ toast('已发起下载，请查看浏览器下载记录或文件管理');
+ return true
+}
 function dcwExport(list,name){
  if(!list.length)return toast('还没有可导出的组件');
  const json=JSON.stringify({app:'xsj-widgets',v:1,widgets:list.map(x=>({name:x.name,html:x.html,css:x.css,js:x.js||'',h:x.h,wp:dcwWp(x)}))},null,1);
+ const safe=String(name||'小手机组件').replace(/[\\\\/:*?"<>|]/g,'_').slice(0,60)||'小手机组件';
  dcwSheet('导出 '+list.length+' 个组件',[
-  {label:'保存为文件',run:()=>{const f=new File([json],name+'.json',{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f],title:name}).catch(()=>{});else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=name+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},600)}}},
+  {label:'保存为文件',run:()=>dcwSaveFile(json,safe+'.json','application/json;charset=utf-8')},
   {label:'复制代码',run:()=>dcwCopy(json)},{label:'取消',cancel:1}]);
 }
 function dcwImportText(txt){
@@ -10446,9 +10457,9 @@ function dctClean(o){
  return R}
 function dctBuild(){return{app:'xsj-desktop-theme',v:1,created:new Date().toISOString().slice(0,10),desktop:dctClean(dcwD())}}
 function dctDownload(json,name){
- const fn=name.replace(/[\\\/:*?"<>|]/g,'_')+'.json',f=new File([json],fn,{type:'application/json'});
- if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f],title:name}).catch(()=>{});
- else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},600)}}
+ const fn=String(name||'我的桌面').replace(/[\\\\/:*?"<>|]/g,'_').slice(0,60)+'.json';
+ return dcwSaveFile(json,fn,'application/json;charset=utf-8')
+}
 async function dctExport(){
  const name=await askText('美化包名称','给这套桌面起个名字');if(name===null)return;
  const nm=(name.trim()||'我的桌面').slice(0,40),pack=dctBuild();pack.name=nm;
