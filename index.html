@@ -6442,8 +6442,9 @@ function searchCurrentChat(){
 function editUserAndRedo(i){
   if(busy)return toast('正在生成中，请稍等');
   if(navigator.onLine===false)return toast('当前网络不可用，联网后再编辑并重新回复，避免丢失后续消息');
-  const h=S.chats[cur],m=h&&h[i];if(!m||m.role!=='user')return;
+  const cid=cur,h=S.chats[cid],m=h&&h[i];if(!m||m.role!=='user')return;
   modal(m.content||'',v=>{
+    if(cur!==cid||S.chats[cid]!==h||h[i]!==m)return toast('聊天对象已切换，本次编辑未应用');
     const next=String(v||'').trim();if(!next)return toast('消息不能为空');
     if(next===(m.content||''))return;
     if(!confirm('修改这条消息后，将删除它后面的聊天内容并重新生成角色回复。是否继续？'))return;
