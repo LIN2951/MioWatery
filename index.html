@@ -6427,12 +6427,35 @@ function photoMessageMenu(i,photoIndex){
  if(!m||m.role!=='user'||!pics||!Number.isInteger(photoIndex)||photoIndex<0||photoIndex>=pics.length)return;
  showMsgMenu([[{label:'设为我的头像',icon:'user',run:()=>setAvatarFromMessage(m,'me',photoIndex)},{label:'设为角色头像',icon:'user',run:()=>setAvatarFromMessage(m,'role',photoIndex)},{label:'下载照片',icon:'download',run:()=>openPhotoDownloadSheet(m)}]]);
 }
+function searchCurrentChat(){
+  const h=S.chats[cur]||[],term=prompt('搜索当前角色的聊天记录','');if(term===null)return;
+  const q=String(term).trim().toLocaleLowerCase();if(!q)return toast('请输入搜索内容');
+  const hits=[];
+  for(let i=0;i<h.length;i++){const m=h[i];if(!m||m.recalled)continue;const body=[m.content,quoteText(m),m.reasoning].filter(Boolean).join(' ').toLocaleLowerCase();if(body.includes(q))hits.push(i)}
+  if(!hits.length)return toast('没有找到相关消息');
+  if(hits.length===1){jumpToMsg(h[hits[0]].t,h[hits[0]].role,quoteText(h[hits[0]]));return toast('找到 1 条消息')}
+  const lines=hits.slice(-30).reverse().map((i,n)=>{const m=h[i],txt=String(m.content||quoteText(m)||'').replace(/\\s+/g,' ').trim().slice(0,54);return (n+1)+'. '+(m.role==='user'?'我':'角色')+' · '+(txt||'[媒体消息]')}).join('\\n');
+  const pick=prompt('找到 '+hits.length+' 条，输入序号跳转（显示最近 30 条，1 为最新）：\\n'+lines,'1');
+  if(pick===null)return;const n=Number(pick);if(!Number.isInteger(n)||n<1||n>Math.min(30,hits.length))return toast('序号无效');
+  const i=hits.slice(-30).reverse()[n-1];jumpToMsg(h[i].t,h[i].role,quoteText(h[i]));
+}
+function editUserAndRedo(i){
+  if(busy)return toast('正在生成中，请稍等');
+  const h=S.chats[cur],m=h&&h[i];if(!m||m.role!=='user')return;
+  modal(m.content||'',v=>{
+    const next=String(v||'').trim();if(!next)return toast('消息不能为空');
+    if(next===(m.content||''))return;
+    if(!confirm('修改这条消息后，将删除它后面的聊天内容并重新生成角色回复。是否继续？'))return;
+    m.content=next;h.splice(i+1);save();draw();gen();
+  });
+}
 function messageMenu(i){const h=S.chats[cur],m=h&&h[i];if(!m)return;const ast=m.role==='assistant';if(m.errorMessage){showMsgMenu([[{label:'删除错误消息',icon:'trash',danger:1,run:()=>{const pid=cur,before=h.slice();h.splice(i,1);save();draw();offerChatUndo(pid,before,h,1,'已删除错误消息')}}]]);return}const hasPhotos=!!(m.image||Array.isArray(m.images)&&m.images.length),groups=[
- [{label:'多选消息',icon:'list',run:()=>{multiSelectMode=true;selectedMsgIndices.add(i);draw()}}],
+ [{label:'多选消息',icon:'list',run:()=>{multiSelectMode=true;selectedMsgIndices.add(i);draw()}},{label:'搜索本聊天',icon:'search',run:()=>searchCurrentChat()}],
  
  
  [{label:'复制消息',icon:'copy',run:()=>{const t=String(m.content||'').trim();if(!t)return toast('这条消息没有可复制的文字');ofCopy(t)}},
   {label:'编辑消息',icon:'edit',run:()=>modal(m.content||'',v=>{m.content=v;delete m.recalled;save();draw()})},
+  ...(!ast&&m.role==='user'?[{label:'编辑并重新回复',icon:'refresh-cw',run:()=>editUserAndRedo(i)}]:[]),
   {label:'引用回复',icon:'quote',run:()=>setQuote(m)},
   {label:fvFind(m)>=0?'取消收藏':(hasPhotos?'收藏照片':'收藏消息'),icon:'star',run:()=>fvToggle(m)},
   {label:ast?'重回':'复制到输入框',icon:ast?'redo':'copy',run:()=>{if(ast){if(busy)return;chatRedoDlg(i)}else{$('#ta').value=(m.content||'');$('#ta').focus();sIcon()}}},
