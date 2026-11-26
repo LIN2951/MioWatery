@@ -10592,16 +10592,37 @@ function dcwExport(list,name){
   {label:'保存为文件',run:()=>dcwSaveFile(json,safe+'.json','application/json;charset=utf-8')},
   {label:'复制代码',run:()=>dcwCopy(json)},{label:'取消',cancel:1}]);
 }
+function dcwNormalizePackage(o){
+ if(!o||typeof o!=='object')return [];
+ let a=Array.isArray(o)?o:Array.isArray(o.widgets)?o.widgets:Array.isArray(o.components)?o.components:Array.isArray(o.items)?o.items:Array.isArray(o.data)?o.data:Array.isArray(o.list)?o.list:null;
+ if(!a&&o.data&&typeof o.data==='object')a=Array.isArray(o.data.widgets)?o.data.widgets:Array.isArray(o.data.components)?o.data.components:null;
+ if(!a&&(o.html!=null||o.css!=null||o.js!=null||o.code!=null||o.content!=null||o.template!=null))a=[o];
+ return Array.isArray(a)?a:[];
+}
 function dcwImportText(txt){
- let o;try{o=JSON.parse(String(txt).trim())}catch(e){return toast('不是有效的组件代码')}
- const arr=Array.isArray(o)?o:Array.isArray(o&&o.widgets)?o.widgets:(o&&o.html!=null?[o]:[]);
- const d=dcwD();let n=0;
- arr.slice(0,50).forEach(x=>{if(!x||typeof x!=='object')return;const html=String(x.html||'').slice(0,80000),css=String(x.css||'').slice(0,80000);if(!html&&!css&&!x.js)return;
-  const name=String(x.name||'导入的组件').slice(0,40);if(d.wlib.some(L=>L.name===name&&L.html===html&&L.css===css&&(L.js||'')===String(x.js||'').slice(0,80000)))return;
-  d.wlib.push({id:uid(),name,html,css,js:String(x.js||'').slice(0,80000),h:Math.max(50,Math.min(900,+x.h||120)),wp:Math.max(20,Math.min(100,+x.wp||(x.w==='half'?50:100))),w:(+x.wp||(x.w==='half'?50:100))<75?'half':'full',perm:false});n++});
- if(!n)return toast('没有可导入的新组件');
- save();dcwRefreshUI();toast('已导入 '+n+' 个组件（脚本在沙盒里运行，默认没有聊天权限）');
- return n}
+ let o;try{o=JSON.parse(String(txt).trim())}catch(e){
+  const raw=String(txt||'').trim();if(!raw)return toast('组件文件是空的');
+  if(/<([a-z][\w:-]*)(?:\s|>|\/)/i.test(raw))o={name:'导入的 HTML 组件',html:raw};
+  else if(/[.#][\w-]+\s*\{[^}]*\}/.test(raw))o={name:'导入的 CSS 组件',css:raw};
+  else return toast('无法识别组件格式：请使用 JSON、HTML 或 CSS 组件文件');
+ }
+ const arr=dcwNormalizePackage(o);if(!arr.length)return toast('没有识别到组件：支持 widgets、components、items 等组件列表');
+ const d=dcwD();let n=0,skip=0;
+ arr.slice(0,100).forEach((x,i)=>{if(!x||typeof x!=='object')return;
+  const html=String(x.html??x.template??x.content??x.markup??'').slice(0,80000);
+  const css=String(x.css??x.style??x.styles??'').slice(0,80000);
+  const js=String(x.js??x.script??x.code??'').slice(0,80000);
+  if(!html&&!css&&!js)return;
+  const name=String(x.name||x.title||x.label||('导入的组件 '+(i+1))).slice(0,40);
+  if(d.wlib.some(L=>L.name===name&&L.html===html&&L.css===css&&(L.js||'')===js)){skip++;return}
+  const rawWp=x.wp??x.width??(x.w==='half'?50:100),wpv=typeof rawWp==='string'?parseFloat(rawWp):+rawWp,wp=Math.max(20,Math.min(100,isFinite(wpv)?wpv:100));
+  const rawH=x.h??x.height??x.widgetHeight;
+  d.wlib.push({id:uid(),name,html,css,js,h:Math.max(50,Math.min(900,+rawH||120)),wp,w:wp<75?'half':'full',perm:false});n++;
+ });
+ if(!n){if(skip)return toast('这些组件已经导入过了');return toast('文件里没有可用的 HTML、CSS 或 JS 组件代码')}
+ save();dcwRefreshUI();toast('已导入 '+n+' 个组件'+(skip?'，跳过 '+skip+' 个重复组件':'')+'（脚本在沙盒里运行，默认没有聊天权限）');
+ return n
+}
 function dcwImportMenu(){
  dcwSheet('导入组件',[
   {label:'选择文件',run:()=>{const i=document.createElement('input');i.type='file';i.accept='.json,application/json,text/plain';i.onchange=()=>{const f=i.files&&i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>dcwImportText(r.result);r.readAsText(f)};i.click()}},
@@ -10669,10 +10690,27 @@ function dctClean(o){
 function dctBuild(){return{app:'xsj-desktop-theme',v:1,created:new Date().toISOString().slice(0,10),desktop:dctClean(dcwD())}}
 
 function dctThemeList(){S.desktopThemes=Array.isArray(S.desktopThemes)?S.desktopThemes:[];return S.desktopThemes}
+function dctNormalizePackage(o){
+ if(!o||typeof o!=='object')return null;
+ let d=o.desktop||o.theme||o.desktopTheme||o.desktopConfig||(o.data&&(o.data.desktop||o.data.theme||o.data))||o.config||o;
+ if(!d||typeof d!=='object'||Array.isArray(d))return null;
+ const has=['wallpaper','background','backgroundImage','wallpaperUrl','icons','appIcons','widgets','wlib','components','customWidgets','order','hidden','free'].some(k=>d[k]!==undefined);
+ if(!has)return null;
+ const out=Object.assign({},d);
+ if(out.wallpaper==null)out.wallpaper=out.backgroundImage||out.wallpaperUrl||out.background||out.bg||'';
+ if(out.icons==null)out.icons=out.appIcons||out.appIconMap||out.shortcuts||{};
+ if(out.wlib==null)out.wlib=out.customWidgets||out.components||out.widgetLibrary||[];
+ if(out.widgets==null)out.widgets=out.desktopWidgets||out.placedWidgets||[];
+ if(out.order==null)out.order=out.layout||out.positions||{};
+ if(out.hidden==null)out.hidden=out.hiddenWidgets||[];
+ if(out.free==null)out.free=out.freeLayout||out.placements||{};
+ return out;
+}
 function dctSaveTheme(txt,fallback){
  let o;try{o=JSON.parse(String(txt||'').trim())}catch(e){return{bad:'不是有效的桌面美化包'}}
- if(!o||o.app!=='xsj-desktop-theme'||!o.desktop||typeof o.desktop!=='object')return{bad:'不是桌面美化包'};
- const name=String(fallback||o.name||'导入的桌面美化').trim().slice(0,40)||'导入的桌面美化',c=dctClean(o.desktop),list=dctThemeList(),sig=JSON.stringify(c);
+ const d=dctNormalizePackage(o);if(!d)return{bad:'未识别到桌面美化内容（需要包含壁纸、图标或桌面组件）'};
+ const name=String(fallback||o.name||o.title||'导入的桌面美化').trim().slice(0,40)||'导入的桌面美化',c=dctClean(d),list=dctThemeList(),sig=JSON.stringify(c);
+ if(!Object.keys(c.icons).length&&!c.wallpaper&&!c.widgets.length&&!c.wlib.length&&!Object.keys(c.order).length&&!Object.keys(c.free).length)return{bad:'识别到了文件，但没有可用的桌面美化内容'};
  if(list.some(x=>x.name===name&&JSON.stringify(x.desktop)===sig))return{skip:1,name};
  list.unshift({id:uid(),name,category:'桌面美化',createdAt:Date.now(),desktop:c});save();return{n:1,name};
 }
@@ -11207,7 +11245,7 @@ async function xrImportWork(w){
  let n=0,skip=0,notes=[],extra='',dest={theme:'我的美化方案',widgets:'我的小组件',world:'世界书',preset:'预设',persona:'人设',sticker:'表情包',voice:'心声预设'};
  const importOne=async(a,cat)=>{
   if(cat==='theme'){const t=await xrText(a),r=dctSaveTheme(t,w.title||xrBase(a.name));if(r.n)n+=r.n;if(r.skip)skip++;if(r.bad)notes.push(a.name+'：'+r.bad);return}
-  if(cat==='widgets'){const t=await xrText(a),o=xrParse(t),arr=Array.isArray(o)?o:Array.isArray(o&&o.widgets)?o.widgets:(o&&o.html!=null?[o]:[]),before=dcwD().wlib.length,r=dcwImportText(t);if(typeof r==='number'){n+=r;skip+=Math.max(0,arr.length-r)}else notes.push(a.name+'：组件包格式不正确');return}
+  if(cat==='widgets'){const t=await xrText(a),o=xrParse(t),arr=o?dcwNormalizePackage(o):((/<([a-z][\w:-]*)(?:\s|>|\/)/i.test(t)||/[.#][\w-]+\s*\{[^}]*\}/.test(t))?[{}]:[]),r=dcwImportText(t);if(typeof r==='number'){n+=r;skip+=Math.max(0,arr.length-r)}else notes.push(a.name+'：组件包格式不正确');return}
   const C=XR[cat];if(!C){notes.push(a.name+'：暂不支持这种文件格式');return}
   if(C.unpackAtt&&a.enc==='b'&&/^image\//.test(a.mime||'')){const r=await C.unpackAtt(a,w.title);n+=r.n||0;skip+=r.skip||0;return}
   const t=await xrText(a);if(!t.trim()){notes.push(a.name+' 没读到文字');return}
@@ -11627,14 +11665,16 @@ async function xrDetectOtherType(a){
  let t='';try{t=await xrText(a)}catch(e){}
  if(!t.trim())return'';
  const j=xrParse(t);
- if(j&&j.app==='xsj-desktop-theme'&&j.desktop&&typeof j.desktop==='object')return'theme';
- if(j&&j.app==='xsj-widgets'&&Array.isArray(j.widgets))return'widgets';
+ if(j&&(j.app==='xsj-desktop-theme'||dctNormalizePackage(j)))return'theme';
+ if(j&&(j.app==='xsj-widgets'||dcwNormalizePackage(j).length))return'widgets';
  if(j&&j.app==='xsj-worlds'&&Array.isArray(j.worlds))return'world';
  if(j&&j.app==='xsj-presets'&&Array.isArray(j.presets))return'preset';
  if(j&&j.app==='xsj-personas'&&Array.isArray(j.personas))return'persona';
  if(j&&j.app==='xsj-stickers'&&Array.isArray(j.groups))return'sticker';
  if(j&&j.app==='xsj-voice-presets'&&Array.isArray(j.presets))return'voice';
  if(j&&(j.entries||(j.character_book&&j.character_book.entries)))return'world';
+ if(/<([a-z][\w:-]*)(?:\s|>|\/)/i.test(t))return'widgets';
+ if(/[.#][\w-]+\s*\{[^}]*\}/.test(t)&&/\.(css|txt)$/i.test(a.name||''))return'widgets';
  return'';
 }
 async function xrOtherPackageKind(w){
