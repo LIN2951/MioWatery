@@ -11203,30 +11203,31 @@ function xrImportFiles(cat){xrPick(async fs=>{let n=0,skip=0,notes=[],extra='';
   const r=await XR[cat].unpack(t,xrBase(f.name));if(r.cancel)return;n+=r.n||0;skip+=r.skip||0;if(r.bad)notes.push(f.name+'：'+r.bad);if(r.note)extra=r.note}
  xrReport(xrCatName(cat),n,skip,notes,extra)},{multiple:true})}
 async function xrImportWork(w){
- if(w.cat==='other'){
-  const kind=await xrOtherPackageKind(w);
-  if(kind==='theme'){
-   let n=0,skip=0,notes=[];
-   for(const a of w.files){let t='';try{t=await xrText(a)}catch(e){}if(!t)continue;const r=dctSaveTheme(t,w.title||xrBase(a.name));if(r.n)n+=r.n;if(r.skip)skip++;if(r.bad)notes.push(a.name+'：'+r.bad)}
-   if(n||skip){try{renderDesktopCustomizer()}catch(e){}xrReport('我的桌面美化',n,skip,notes,'已归类为「桌面美化」，可在桌面美化 → 我的美化方案中切换');return}
-   return toast(notes[0]||'没有找到可导入的桌面美化包');
-  }
-  if(kind==='widgets'){
-   let n=0;
-   for(const a of w.files){let t='';try{t=await xrText(a)}catch(e){}if(!t)continue;const r=dcwImportText(t);if(typeof r==='number')n+=r}
-   if(n){try{dcwRefreshUI()}catch(e){}return toast('已导入 '+n+' 个小组件，可在桌面美化里的我的组件库中添加到桌面',4200)}
-   return toast('没有可导入的新小组件（可能已存在或文件格式不正确）');
-  }
-  return toast('「其他」作品不是可识别的桌面美化包或小组件包，仍可下载附件');
- }
- const C=XR[w.cat];if(!C)return toast('「其他」分区的附件只能下载');
  if(!w.files.length)return toast('这个作品没有附件');
- let n=0,skip=0,notes=[],extra='';
- for(const a of w.files){if(C.unpackAtt&&a.enc==='b'&&/^image\//.test(a.mime||'')){const r=await C.unpackAtt(a,w.title);n+=r.n||0;skip+=r.skip||0;continue}
-  let t='';try{t=await xrText(a)}catch(e){}
-  if(!t.trim()){notes.push(a.name+' 没读到文字');continue}
-  const r=await C.unpack(t,w.files.length===1?w.title:xrBase(a.name));if(r.cancel)return;n+=r.n||0;skip+=r.skip||0;if(r.bad)notes.push(a.name+'：'+r.bad);if(r.note)extra=r.note}
- xrReport(xrCatName(w.cat),n,skip,notes,extra)}
+ let n=0,skip=0,notes=[],extra='',dest={theme:'我的美化方案',widgets:'我的小组件',world:'世界书',preset:'预设',persona:'人设',sticker:'表情包',voice:'心声预设'};
+ const importOne=async(a,cat)=>{
+  if(cat==='theme'){const t=await xrText(a),r=dctSaveTheme(t,w.title||xrBase(a.name));if(r.n)n+=r.n;if(r.skip)skip++;if(r.bad)notes.push(a.name+'：'+r.bad);return}
+  if(cat==='widgets'){const t=await xrText(a),o=xrParse(t),arr=Array.isArray(o)?o:Array.isArray(o&&o.widgets)?o.widgets:(o&&o.html!=null?[o]:[]),before=dcwD().wlib.length,r=dcwImportText(t);if(typeof r==='number'){n+=r;skip+=Math.max(0,arr.length-r)}else notes.push(a.name+'：组件包格式不正确');return}
+  const C=XR[cat];if(!C){notes.push(a.name+'：暂不支持这种文件格式');return}
+  if(C.unpackAtt&&a.enc==='b'&&/^image\//.test(a.mime||'')){const r=await C.unpackAtt(a,w.title);n+=r.n||0;skip+=r.skip||0;return}
+  const t=await xrText(a);if(!t.trim()){notes.push(a.name+' 没读到文字');return}
+  const r=await C.unpack(t,w.files.length===1?w.title:xrBase(a.name));if(r.cancel)throw Object.assign(new Error('cancel'),{cancel:true});n+=r.n||0;skip+=r.skip||0;if(r.bad)notes.push(a.name+'：'+r.bad);if(r.note)extra=r.note;
+ };
+ try{
+  for(const a of w.files){
+   let cat=w.cat;
+   if(cat==='other')cat=await xrDetectOtherType(a);
+   if(!cat){notes.push(a.name+'：无法识别格式，仍可单独下载');continue}
+   await importOne(a,cat);
+  }
+ }catch(e){if(e.cancel)return;notes.push(e.message||'导入失败')}
+ if(n||skip){
+  try{if(w.cat==='other'||w.cat==='world')rWorlds();if(w.cat==='other'||w.cat==='preset')prBody();if(w.cat==='other'||w.cat==='persona')ctcList();if(w.cat==='other'||w.cat==='theme')renderDesktopCustomizer();if(w.cat==='other'||w.cat==='widgets')dcwRefreshUI()}catch(e){}
+  const labels=w.cat==='other'?[...new Set(await Promise.all(w.files.map(xrDetectOtherType)))].filter(Boolean).map(k=>dest[k]||xrCatName(k)).join('、'):xrCatName(w.cat);
+  xrReport(labels||'我的内容',n,skip,notes,extra);return;
+ }
+ toast(notes.length?notes.join('；'):'没有导入任何新内容；可能已经导入过了',4800);
+}
 function xrExportFiles(cat,ids,title){const fl=XR[cat].pack(ids,title);if(!fl.length)return toast('没有可导出的内容');
  fl.forEach((f,i)=>setTimeout(()=>xsjDl(new Blob([f.text],{type:(f.mime||'text/plain')+';charset=utf-8'}),f.name),i*400));toast('已导出 '+fl.length+' 个文件')}
 async function xrExportPick(cat,title,pre){const ids=await xrPicker({title:title||('选择要导出的'+xrCatName(cat)),items:XR[cat].items(),ok:'导出',empty:'还没有可导出的'+xrCatName(cat)});if(ids)xrExportFiles(cat,ids)}
@@ -11544,7 +11545,7 @@ R.youtube=window.ytRender;
 
 const xrAlias=()=>{const a=RPO().alias;return a&&a.name?a:null};
 function xrPav(p){const n=String((p&&p.name)||'匿名').trim()||'匿名',a=p&&typeof p.avatar==='string'&&/^data:image\//.test(p.avatar)?p.avatar:'';return '<span class="xr-pav">'+(a?'<img src="'+a.replace(/"/g,'%22')+'" alt="">':esc([...n][0]))+'</span>'}
-function xrCard(w,poster,floor){return '<div class="xr-fl xr-row" data-id="'+esc(w.id)+'"><div class="xr-fh">'+xrPav(poster)+'<span class="xr-pn">'+esc((poster&&poster.name)||'匿名')+'</span><span class="xr-fn">'+floor+'L</span></div><div class="xr-ttl">'+esc(w.title)+'</div><div class="xr-by">'+esc('作者：'+(w.author||'佚名')+' · '+xrCatName(w.cat))+'</div>'+(w.desc?'<div class="xr-bq">'+esc(w.desc)+'</div>':'')+'<div class="xr-foot"><span class="xr-fm">'+(w.likes!==undefined?'<button class="xr-lk'+(w.liked?' on':'')+'" data-like type="button" aria-label="点赞"><svg viewBox="0 0 24 24" width="16" height="16" fill="'+(w.liked?'currentColor':'none')+'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.8 3.6 4.5 7 4.5c2 0 3.3 1 5 3 1.7-2 3-3 5-3 3.4 0 5.6 3.3 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span>'+(w.likes||0)+'</span></button>':'')+'<span>'+((w.files&&w.files.length)||0)+' 个附件</span></span>'+(XR[w.cat]?'<button class="of-mini" data-imp type="button">导入</button>':'')+'</div></div>'}
+function xrCard(w,poster,floor){return '<div class="xr-fl xr-row" data-id="'+esc(w.id)+'"><div class="xr-fh">'+xrPav(poster)+'<span class="xr-pn">'+esc((poster&&poster.name)||'匿名')+'</span><span class="xr-fn">'+floor+'L</span></div><div class="xr-ttl">'+esc(w.title)+'</div><div class="xr-by">'+esc('作者：'+(w.author||'佚名')+' · '+xrCatName(w.cat))+'</div>'+(w.desc?'<div class="xr-bq">'+esc(w.desc)+'</div>':'')+'<div class="xr-foot"><span class="xr-fm">'+(w.likes!==undefined?'<button class="xr-lk'+(w.liked?' on':'')+'" data-like type="button" aria-label="点赞"><svg viewBox="0 0 24 24" width="16" height="16" fill="'+(w.liked?'currentColor':'none')+'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.8 3.6 4.5 7 4.5c2 0 3.3 1 5 3 1.7-2 3-3 5-3 3.4 0 5.6 3.3 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span>'+(w.likes||0)+'</span></button>':'')+'<span>'+((w.files&&w.files.length)||0)+' 个附件</span></span>'+((XR[w.cat]||w.cat==='other')?'<button class="of-mini" data-imp type="button">'+(w.cat==='other'?'识别并导入':'导入')+'</button>':'')+'</div></div>'}
 const xrDev=()=>{const R=RPO();if(!R.dev){R.dev=Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,'0')).join('');save()}return R.dev};
 function xrLkDraw(b,it){b.classList.toggle('on',!!it.liked);b.querySelector('span').textContent=it.likes||0;b.querySelector('svg').setAttribute('fill',it.liked?'currentColor':'none')}
 async function xrLike(it,b){if(b.dataset.busy)return;b.dataset.busy=1;const was=!!it.liked,n=+it.likes||0;it.liked=!was;it.likes=Math.max(0,n+(was?-1:1));xrLkDraw(b,it);
@@ -11622,12 +11623,23 @@ async function xrPlaza(){const box=$('#xr-list');if(!box)return;const tok=++xrPl
   box.innerHTML='<div class="xr-fls">'+j.works.map((w,i)=>xrCard(w,w.poster,(j.total||j.works.length)-i)).join('')+'</div>'+(j.total>j.works.length?'<p class="of-hint">只显示最新 '+j.works.length+' 个，可以用搜索或分区找更多。</p>':'')}
  catch(e){if(tok!==xrPlTok)return;box.innerHTML='<div class="of-empty">连不上仓库服务器<br><small>'+esc(e.message)+'</small><br><br><button class="of-mini" id="xr-retry" type="button">重试</button></div>';const b=$('#xr-retry');if(b)b.onclick=xrPlaza}}
 
-async function xrOtherPackageKind(w){
- for(const a of (w&&w.files)||[]){let t='';try{t=await xrText(a)}catch(e){}if(!t)continue;const j=xrParse(t);
-  if(j&&j.app==='xsj-desktop-theme'&&j.desktop&&typeof j.desktop==='object')return'theme';
-  if(j&&j.app==='xsj-widgets'&&Array.isArray(j.widgets))return'widgets';
- }
+async function xrDetectOtherType(a){
+ let t='';try{t=await xrText(a)}catch(e){}
+ if(!t.trim())return'';
+ const j=xrParse(t);
+ if(j&&j.app==='xsj-desktop-theme'&&j.desktop&&typeof j.desktop==='object')return'theme';
+ if(j&&j.app==='xsj-widgets'&&Array.isArray(j.widgets))return'widgets';
+ if(j&&j.app==='xsj-worlds'&&Array.isArray(j.worlds))return'world';
+ if(j&&j.app==='xsj-presets'&&Array.isArray(j.presets))return'preset';
+ if(j&&j.app==='xsj-personas'&&Array.isArray(j.personas))return'persona';
+ if(j&&j.app==='xsj-stickers'&&Array.isArray(j.groups))return'sticker';
+ if(j&&j.app==='xsj-voice-presets'&&Array.isArray(j.presets))return'voice';
+ if(j&&(j.entries||(j.character_book&&j.character_book.entries)))return'world';
  return'';
+}
+async function xrOtherPackageKind(w){
+ const kinds=[];for(const a of (w&&w.files)||[]){const k=await xrDetectOtherType(a);if(k&&!kinds.includes(k))kinds.push(k)}
+ return kinds.length===1?kinds[0]:kinds.length?'mixed':'';
 }
 async function xrPlazaFetch(it){const j=await xrApi('/api/works/'+it.id+'/pack'),x=j&&j.works&&j.works[0];if(!x)throw new Error('作品内容为空');
  return{title:x.title||it.title,author:x.author||it.author||'',cat:XR_CATS.some(c=>c[0]===x.cat)?x.cat:'other',desc:x.desc||'',ts:x.ts||Date.now(),files:(x.files||[]).map(a=>({id:uid(),name:String(a.name),size:+a.size||0,mime:String(a.mime||''),enc:a.enc==='b'?'b':'t',data:String(a.data||'')}))}}
