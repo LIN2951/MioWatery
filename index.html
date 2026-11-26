@@ -6451,7 +6451,7 @@ function editUserAndRedo(i){
     m.content=next;h.splice(i+1);save();draw();gen();
   });
 }
-function messageMenu(i){const h=S.chats[cur],m=h&&h[i];if(!m)return;const ast=m.role==='assistant';if(m.errorMessage){showMsgMenu([[{label:'删除错误消息',icon:'trash',danger:1,run:()=>{const pid=cur,before=h.slice();h.splice(i,1);save();draw();offerChatUndo(pid,before,h,1,'已删除错误消息')}}]]);return}const hasPhotos=!!(m.image||Array.isArray(m.images)&&m.images.length),groups=[
+function messageMenu(i){const h=S.chats[cur],m=h&&h[i];if(!m)return;const ast=m.role==='assistant';if(m.errorMessage){showMsgMenu([[{label:'重试角色回复',icon:'refresh-cw',run:()=>{if(busy)return toast('正在生成中，请稍等');if(navigator.onLine===false)return toast('当前网络不可用，联网后再重试');const pid=cur,chat=h,err=m;if(S.chats[pid]!==chat||chat[i]!==err)return toast('聊天记录已变化，请重新打开菜单');chat.splice(i,1);save();draw();gen()}},{label:'删除错误消息',icon:'trash',danger:1,run:()=>{const pid=cur,before=h.slice();h.splice(i,1);save();draw();offerChatUndo(pid,before,h,1,'已删除错误消息')}}]]);return}const hasPhotos=!!(m.image||Array.isArray(m.images)&&m.images.length),groups=[
  [{label:'多选消息',icon:'list',run:()=>{multiSelectMode=true;selectedMsgIndices.add(i);draw()}},{label:'搜索本聊天',icon:'search',run:()=>searchCurrentChat()}],
  
  
