@@ -6609,28 +6609,49 @@ $('#ta').addEventListener('input',e=>{e.target.style.height='auto';e.target.styl
 $('#ta').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}});
 $('#send').onclick=()=>$('#ta').value.trim()?send():reply();
 function openChatImagePicker(){
+ const chatId=cur,profileId=S.activeUserProfile,chatMap=S.chats;
+ const history=chatMap[chatId]||(chatMap[chatId]=[]);
+ const ta=$('#ta'),caption=ta?ta.value.trim():'';
+ const quoteRef=pendingQuote&&pendingQuote.chat===chatId?pendingQuote:null;
+ const quoteData=quoteRef?{quote:{role:quoteRef.role,text:quoteRef.text,t:quoteRef.t}}:{};
  const i=document.createElement('input');i.type='file';i.accept='image/*';i.multiple=true;
  i.setAttribute('aria-label','选择多张聊天照片');
  i.style.cssText='position:fixed;left:-10000px;top:0;width:1px;height:1px;opacity:0;';
  document.body.appendChild(i);
- let handled=false;
- const cleanup=()=>{if(i.isConnected)i.remove()};
+ let handled=false,cleaned=false;
+ const cleanup=()=>{if(cleaned)return;cleaned=true;if(i.isConnected)i.remove()};
  i.addEventListener('change',async()=>{
   if(handled)return;handled=true;
-  const files=Array.from(i.files||[]).filter(f=>f&&(/^image\\//i.test(f.type)||/\\.(png|jpe?g|gif|webp|bmp|avif|heic|heif)$/i.test(f.name||'')));
+  const selected=Array.from(i.files||[]);
   cleanup();
+  const files=selected.filter(f=>f&&(/^image\\//i.test(f.type)||/\\.(png|jpe?g|gif|webp|bmp|avif|heic|heif)$/i.test(f.name||'')));
+  if(selected.length>files.length)toast('已跳过 '+(selected.length-files.length)+' 个非图片文件');
   if(!files.length)return;
+  if(files.some(f=>!f.size))return toast('所选照片中包含空文件，请重新选择');
   try{
-   const data=await Promise.all(files.map(f=>new Promise((resolve,reject)=>{
-    const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(reader.error||new Error('图片读取失败'));reader.readAsDataURL(f);
-   })));
+   const data=[];
+   for(const file of files){
+    const src=await new Promise((resolve,reject)=>{
+     const reader=new FileReader();
+     reader.onload=()=>typeof reader.result==='string'&&reader.result.startsWith('data:image/')?resolve(reader.result):reject(new Error('图片格式无法读取'));
+     reader.onerror=()=>reject(reader.error||new Error('图片读取失败'));
+     reader.onabort=()=>reject(new Error('图片读取已取消'));
+     reader.readAsDataURL(file);
+    });
+    data.push(src);
+   }
    if(!data.length)return;
-   const chatId=cur;
-   S.chats[chatId]=S.chats[chatId]||[];
-   S.chats[chatId].push({role:'user',content:$('#ta').value.trim(),images:data,t:Date.now(),...takeQuote()});
-   $('#ta').value='';$('#ta').style.height='auto';save();draw();
+   if(S.activeUserProfile!==profileId||S.chats!==chatMap||chatMap[chatId]!==history){
+    toast('用户资料或聊天数据已切换，照片未发送，请重新选择');
+    return;
+   }
+   history.push({role:'user',content:caption,images:data,t:Date.now(),...quoteData});
+   if(quoteRef&&pendingQuote===quoteRef){pendingQuote=null;if(cur===chatId)renderQBar()}
+   if(cur===chatId&&ta&&ta.value.trim()===caption){ta.value='';ta.style.height='auto'}
+   save();
+   if(cur===chatId)draw();
    toast('已发送 '+data.length+' 张照片');
-  }catch(err){toast('图片读取失败：'+(err&&err.message||''))}
+  }catch(err){toast('照片读取失败，未发送：'+(err&&err.message||'请重试'))}
  },{once:true});
  i.addEventListener('cancel',cleanup,{once:true});
  try{i.click()}catch(err){cleanup();toast('无法打开相册，请重试')}
